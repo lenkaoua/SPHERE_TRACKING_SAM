@@ -8,7 +8,7 @@ folder_path = 'Segmentations'
 # Iterate through each file in the directory
 for filename in os.listdir(folder_path):
 
-    img = cv2.imread(f'Segmentations/{filename}', cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(f'{folder_path}/{filename}', cv2.IMREAD_GRAYSCALE)
     assert img is not None, "file could not be read, check with os.path.exists()"
     img = cv2.medianBlur(img,5)
     circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT_ALT,1,10,
