@@ -18,8 +18,8 @@ def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array, NUMBER_OF_PROJE
     ax1.set_title('CV Filtered back projection reconstruction')
     ax1.imshow(CV_reconstruction_fbp, cmap=plt.cm.Greys_r)
 
-    # ax2.set_title('SAM Filtered back projection reconstruction')
-    # ax2.imshow(SAM_reconstruction_fbp, cmap=plt.cm.Greys_r)
+    ax2.set_title('SAM Filtered back projection reconstruction')
+    ax2.imshow(SAM_reconstruction_fbp, cmap=plt.cm.Greys_r)
 
     plt.show()
 
@@ -28,15 +28,22 @@ def correct_data(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, 
     corrected_CV_CoM = []
     corrected_SAM_CoM = []
 
-    for i in range(NUMBER_OF_PROJECTIONS):
-        CV_x = CV_x_poly(i)
-        CV_y = CV_y_poly(i)
+    CV_x_components = [point[0] for point in CV_CoM]
+    CV_y_components = [point[1] for point in CV_CoM]
 
-        SAM_x = SAM_x_poly(i)
-        SAM_y = SAM_y_poly(i)
+    SAM_x_components = [point[0] for point in CV_CoM]
+    SAM_y_components = [point[1] for point in CV_CoM]
 
-        corrected_CV_CoM.append([CV_x, CV_y])
-        corrected_SAM_CoM.append([SAM_x, SAM_y])
+    # Calculate the residuals for CV and SAM curves
+    CV_x_residuals = CV_x_components - CV_x_poly(list(range(NUMBER_OF_PROJECTIONS)))
+    CV_y_residuals = CV_x_components - CV_x_poly(list(range(NUMBER_OF_PROJECTIONS)))
+
+    # Find the index of the point with the maximum residual for both CV and SAM
+    max_CV_x_residual_idx = max(CV_x_residuals)
+    min_CV_x_residual_idx = min(CV_x_residuals)
+
+    max_CV_y_residual_idx = max(CV_y_residuals)
+    min_CV_y_residual_idx = min(CV_y_residuals)
 
     return CV_CoM, SAM_CoM
 
@@ -427,15 +434,15 @@ def main():
     SPHERE_RADIUS = 25e-6 # 40 μm
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
 
-    CV_xy_CoM = [[77, 233], [77, 275], [74, 322], [73, 381], [73, 448], [75, 522], [72, 681], [74, 767], [76, 850], [72, 923], [74, 1002], [74, 1069], [73, 1132], [77, 1180], [75, 1218], [75, 1246], [72, 1260], [77, 1265], [77, 1232]]
-    SAM_xy_CoM = [[75.5, 232.5], [75.0, 275.0], [74.5, 323.5], [74.0, 382.0], [75.0, 446.0], [74.5, 520.5], [74.5, 683.5], [75.0, 766.0], [74.5, 848.5], [75.0, 926.0], [75.0, 1001.0], [75.0, 1069.0], [75.0, 1130.0], [75.0, 1179.0], [75.0, 1219.0], [75.5, 1247.5], [74.5, 1262.5], [75.0, 1266.0], [74.5, 1233.5]]
+    # CV_xy_CoM = [[77, 233], [77, 275], [74, 322], [73, 381], [73, 448], [75, 522], [72, 681], [74, 767], [76, 850], [72, 923], [74, 1002], [74, 1069], [73, 1132], [77, 1180], [75, 1218], [75, 1246], [72, 1260], [77, 1265], [77, 1232]]
+    # SAM_xy_CoM = [[75.5, 232.5], [75.0, 275.0], [74.5, 323.5], [74.0, 382.0], [75.0, 446.0], [74.5, 520.5], [74.5, 683.5], [75.0, 766.0], [74.5, 848.5], [75.0, 926.0], [75.0, 1001.0], [75.0, 1069.0], [75.0, 1130.0], [75.0, 1179.0], [75.0, 1219.0], [75.5, 1247.5], [74.5, 1262.5], [75.0, 1266.0], [74.5, 1233.5]]
     
-    CV_radii = [21, 22, 21, 21, 21, 22, 22, 22, 21, 22, 21, 21, 21, 22, 22, 21, 21, 19, 21, 22]
-    SAM_radii = [20.5, 22.0, 21.5, 21.0, 21.0, 21.5, 21.5, 21.0, 20.5, 21.0, 21.0, 21.0, 21.0, 21.0, 21.0, 21.5, 20.5, 20.0, 21.0, 20.5]
+    # CV_radii = [21, 22, 21, 21, 21, 22, 22, 22, 21, 22, 21, 21, 21, 22, 22, 21, 21, 19, 21, 22]
+    # SAM_radii = [20.5, 22.0, 21.5, 21.0, 21.0, 21.5, 21.5, 21.0, 20.5, 21.0, 21.0, 21.0, 21.0, 21.0, 21.0, 21.5, 20.5, 20.0, 21.0, 20.5]
 
-    projection_idx = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-
-    data_folder = '652 Images'
+    # projection_idx = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    
+    data_folder = 'Images'
 
     # Open the text file containing the array
     with open(f'{data_folder}/CV_xy_CoM.txt', 'r') as file:
@@ -471,6 +478,7 @@ def main():
         projection_idx = ast.literal_eval(data)
 
     NUMBER_OF_PROJECTIONS = 652
+    number_of_valid_projections = len(CV_xy_CoM)
     file_path = 'ProjectionsData.tiff'
 
     projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
@@ -491,6 +499,8 @@ def main():
 
     CV_x_sinogram_array, SAM_x_sinogram_array = get_x_projections_sinogram(CV_CoM, SAM_CoM, projections, projection_idx, NUMBER_OF_PROJECTIONS)
     CV_y_sinogram_array, SAM_y_sinogram_array = get_y_projections_sinogram(CV_CoM, SAM_CoM, projections, projection_idx, NUMBER_OF_PROJECTIONS)
+
+    iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array, number_of_valid_projections)
 
     CV_CoM, SAM_CoM = add_missing_projections(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS)
 

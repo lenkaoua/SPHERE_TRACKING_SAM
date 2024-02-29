@@ -178,7 +178,7 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS):
 
                     CV_deduced_CoM.append([param[0], param[1]])
                     CV_deduced_radius.append(param[2])
-                    
+
                     SAM_deduced_CoM.append(CoM)
                     SAM_deduced_radius.append(radius)
 
@@ -192,7 +192,7 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS):
             #         cv2.circle(cimg,(param[0],param[1]),param[2],(0,255,0),2)
             #         # Draw the center of the circle
             #         cv2.circle(cimg,(param[0],param[1]),2,(0,0,255),3)
-                    
+
             #         cv2.imshow('Detected Circles',cimg)
             #         cv2.waitKey(0)
             #         cv2.destroyAllWindows()
