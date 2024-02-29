@@ -23,29 +23,59 @@ def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array, NUMBER_OF_PROJE
 
     plt.show()
 
-def correct_data(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, NUMBER_OF_PROJECTIONS):
-    
-    corrected_CV_CoM = []
-    corrected_SAM_CoM = []
+def correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS):
 
     CV_x_components = [point[0] for point in CV_CoM]
-    CV_y_components = [point[1] for point in CV_CoM]
-
-    SAM_x_components = [point[0] for point in CV_CoM]
-    SAM_y_components = [point[1] for point in CV_CoM]
 
     # Calculate the residuals for CV and SAM curves
     CV_x_residuals = CV_x_components - CV_x_poly(list(range(NUMBER_OF_PROJECTIONS)))
-    CV_y_residuals = CV_x_components - CV_x_poly(list(range(NUMBER_OF_PROJECTIONS)))
 
     # Find the index of the point with the maximum residual for both CV and SAM
-    max_CV_x_residual_idx = max(CV_x_residuals)
-    min_CV_x_residual_idx = min(CV_x_residuals)
+    max_CV_x_residual_idx = int(max(CV_x_residuals))
+    min_CV_x_residual_idx = int(min(CV_x_residuals))
 
-    max_CV_y_residual_idx = max(CV_y_residuals)
-    min_CV_y_residual_idx = min(CV_y_residuals)
+    # Assuming projections is your list of matrices
+    # Assuming projections is your list of matrices
 
-    return CV_CoM, SAM_CoM
+    padded_projections = []  # Initialize an empty list
+
+    for i, projection in enumerate(projections):
+        extra_top_rows = np.full((max_CV_x_residual_idx, projection.shape[1]), np.nan)
+        extra_bottom_rows = np.full((-min_CV_x_residual_idx, projection.shape[1]), np.nan)
+        padded_projection = np.vstack([extra_bottom_rows, projection, extra_top_rows])
+
+        padded_projections.append(padded_projection)  # Append the padded projection to the list
+    
+    # Convert the list of arrays to a single numpy array
+    padded_projections = np.array(padded_projections)
+
+    corrected_projections = []
+
+    for i, projection in enumerate(padded_projections):
+        delta_CV_x = CV_x_components[i] - CV_x_poly(i)
+        delta_CV_x = int(delta_CV_x)
+        if delta_CV_x > 0:
+            
+            trimmed_projection = projection[delta_CV_x:]
+            extra_top_rows = np.full((delta_CV_x, trimmed_projection.shape[1]), np.nan)
+            corrected_projection = np.vstack([trimmed_projection, extra_top_rows])
+
+            corrected_projections.append(corrected_projection)
+        
+        elif delta_CV_x < 0:
+            
+            trimmed_projection = projection[:delta_CV_x]
+            extra_bottom_rows = np.full((-delta_CV_x, trimmed_projection.shape[1]), np.nan)
+            corrected_projection = np.vstack([extra_bottom_rows, trimmed_projection])
+
+            corrected_projections.append(corrected_projection)
+        
+        else:
+            corrected_projections.append(projection)
+    
+    corrected_projections = np.array(corrected_projections)
+
+    return corrected_projections
 
 def add_missing_projections(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS):
     
@@ -417,12 +447,12 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
     all_projections = tifffile.imread(file_path)
 
     # Calculate the total number of images
-    number_of_projections = len(all_projections)
+    num_projections = len(all_projections)
 
     # Calculate the spacing between projections to select approximately 100 equally spaced images
-    projection_spacing = max(1, number_of_projections // NUMBER_OF_PROJECTIONS)
+    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
     
-    images = all_projections[::projection_spacing]
+    images = all_projections[indices]
 
     return images
 
@@ -509,10 +539,11 @@ def main():
 
     iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array, NUMBER_OF_PROJECTIONS)
 
-    CV_CoM, SAM_CoM = correct_data(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, NUMBER_OF_PROJECTIONS)
+    corrected_CV_projections = correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS)
+    corrected_SAM_projections = correct_data(SAM_x_poly, SAM_y_poly, SAM_CoM, projections, NUMBER_OF_PROJECTIONS)
 
-    CV_x_sinogram_array, SAM_x_sinogram_array = get_x_projections_sinogram(CV_CoM, SAM_CoM, projections, projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
-    CV_y_sinogram_array, SAM_y_sinogram_array = get_y_projections_sinogram(CV_CoM, SAM_CoM, projections, projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
+    CV_x_sinogram_array, SAM_x_sinogram_array = get_x_projections_sinogram(CV_CoM, SAM_CoM, corrected_SAM_projections, projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
+    CV_y_sinogram_array, SAM_y_sinogram_array = get_y_projections_sinogram(CV_CoM, SAM_CoM, corrected_SAM_projections, projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
 
     iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array, NUMBER_OF_PROJECTIONS)
 
