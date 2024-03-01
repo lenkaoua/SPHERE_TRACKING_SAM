@@ -4,9 +4,16 @@ import os
 
 # Specify the directory path
 folder_path = 'Sphere Tracking Output/Segmentations'
+folder_path = 'Images/Segmentations'
+
+# Get the list of files in the directory
+files = os.listdir(folder_path)
+
+# Sort the list of files based on the numbers they start with
+sorted_files = sorted(files, key=lambda x: int(x.split('_')[0]) if '_' in x else float('inf'))
 
 # Iterate through each file in the directory
-for filename in os.listdir(folder_path):
+for filename in sorted_files:
 
     img = cv2.imread(f'{folder_path}/{filename}', cv2.IMREAD_GRAYSCALE)
     assert img is not None, "file could not be read, check with os.path.exists()"
