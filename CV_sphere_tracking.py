@@ -3,7 +3,7 @@ import cv2
 import os
 
 # Specify the directory path
-folder_path = 'Segmentations'
+folder_path = 'Sphere Tracking Output/Segmentations'
 
 # Iterate through each file in the directory
 for filename in os.listdir(folder_path):

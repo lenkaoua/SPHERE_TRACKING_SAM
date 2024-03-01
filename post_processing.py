@@ -465,15 +465,9 @@ def main():
     SAMPLE_DETECTOR_DISTANCE = 1e-2 # 1 cm
     SPHERE_RADIUS = 25e-6 # 40 μm
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
+    NUMBER_OF_PROJECTIONS = 652
 
-    # CV_xy_CoM = [[77, 233], [77, 275], [74, 322], [73, 381], [73, 448], [75, 522], [72, 681], [74, 767], [76, 850], [72, 923], [74, 1002], [74, 1069], [73, 1132], [77, 1180], [75, 1218], [75, 1246], [72, 1260], [77, 1265], [77, 1232]]
-    # SAM_xy_CoM = [[75.5, 232.5], [75.0, 275.0], [74.5, 323.5], [74.0, 382.0], [75.0, 446.0], [74.5, 520.5], [74.5, 683.5], [75.0, 766.0], [74.5, 848.5], [75.0, 926.0], [75.0, 1001.0], [75.0, 1069.0], [75.0, 1130.0], [75.0, 1179.0], [75.0, 1219.0], [75.5, 1247.5], [74.5, 1262.5], [75.0, 1266.0], [74.5, 1233.5]]
-    
-    # CV_radii = [21, 22, 21, 21, 21, 22, 22, 22, 21, 22, 21, 21, 21, 22, 22, 21, 21, 19, 21, 22]
-    # SAM_radii = [20.5, 22.0, 21.5, 21.0, 21.0, 21.5, 21.5, 21.0, 20.5, 21.0, 21.0, 21.0, 21.0, 21.0, 21.0, 21.5, 20.5, 20.0, 21.0, 20.5]
-
-    # projection_idx = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-    
+    projections_file_path = 'ProjectionsData.tiff'
     data_folder = 'Images'
 
     # Open the text file containing the array
@@ -509,14 +503,12 @@ def main():
         # Use ast.literal_eval() to convert the string to a Python object (list of lists)
         projection_idx = ast.literal_eval(data)
 
-    NUMBER_OF_PROJECTIONS = 652
-    number_of_valid_projections = len(CV_xy_CoM)
-    file_path = 'ProjectionsData.tiff'
+    number_of_valid_projections = len(projection_idx)
 
-    projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
+    projections = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
 
     CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
-
+    
     # Get the rotation axis of the trajectory
     CV_rotation_axis, SAM_rotation_axis = get_rotation_axis([CV_CoM, SAM_CoM])
 
