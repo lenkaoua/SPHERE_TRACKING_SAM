@@ -147,7 +147,7 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS):
             if circle_found:
                 continue
 
-            print(f'PROJECTION NUM: {projection_num}')
+            # print(f'PROJECTION NUM: {projection_num}')
             boolean_segmentation_array = mask['segmentation']
             integer_segmentation_array = boolean_segmentation_array.astype(int)
             
