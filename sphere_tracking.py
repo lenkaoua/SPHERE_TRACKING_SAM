@@ -209,7 +209,7 @@ def segment_projections(projections):
     CHECKPOINT = 'sam_vit_h_4b8939.pth'
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    print(DEVICE)
+    print(f'Device used for segmentation: {DEVICE}')
 
     segmentations = []
 
@@ -260,12 +260,12 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
     all_projections = tifffile.imread(file_path)
 
     # Calculate the total number of images
-    number_of_projections = len(all_projections)
+    num_projections = len(all_projections)
 
     # Calculate the spacing between projections to select approximately 100 equally spaced images
-    projection_spacing = max(1, number_of_projections // NUMBER_OF_PROJECTIONS)
+    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
     
-    images = all_projections[::projection_spacing]
+    images = all_projections[indices]
 
     return images
 
