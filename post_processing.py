@@ -447,6 +447,43 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
     return images
 
+def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS):
+
+    sinogram = []
+
+    for i in range(NUMBER_OF_PROJECTIONS):
+
+        projection = projections[i]
+
+        x = projection[:,0]
+        sinogram.append(x)
+
+    sinogram = np.transpose(sinogram)
+
+    sinogram = np.roll(sinogram, 64, axis=0)
+    
+
+    # Create subplots
+    fig, (ax1, ax2)  = plt.subplots(1, 2)
+
+    theta = np.linspace(0., 180., 652, endpoint=False)
+
+    CV_reconstruction_fbp = iradon(-np.log(sinogram/47000), theta=theta, filter_name='ramp')
+
+    ax1.set_title('Reconstruction')
+
+    im1 = ax1.imshow(sinogram, aspect='auto', cmap='viridis')
+    im2 = ax2.imshow(CV_reconstruction_fbp, cmap=plt.cm.Greys_r)
+    ax1.set_xlabel('Index')
+    ax1.set_ylabel('Value')
+    ax1.set_title('1st Column Sinogram')
+    fig.colorbar(im1)
+    fig.colorbar(im2)
+    plt.tight_layout()
+    plt.show()
+
+    return sinogram
+
 def main():
 
     PIXEL_SIZE = 1.1e-6 # 1.1 μm
@@ -494,6 +531,8 @@ def main():
 
     projections = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
     
+    plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS)
+
     CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
     
     # Get the rotation axis of the trajectory
@@ -536,7 +575,7 @@ def main():
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array)
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array)
 
 if __name__ == '__main__':
     main()
