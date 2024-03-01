@@ -271,7 +271,7 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
 def main():
 
-    NUMBER_OF_PROJECTIONS = 3
+    NUMBER_OF_PROJECTIONS = 1
     PIXEL_SIZE = 1.1e-6 # 1.1 μm
     ENERGY = 8e3 # 8 keV
     SOURCE_SAMPLE_DISTANCE = 220e-2 # 220 cm
