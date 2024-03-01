@@ -284,7 +284,7 @@ def main():
 
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
     projections = enhance_contrast(raw_projections)
-    segmentations = segment_projections(projections, output_folder)
+    segmentations = segment_projections(projections)
     CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder)
     
     str_CV_xy_CoM = str(CV_xy_CoM)
