@@ -126,7 +126,7 @@ def deduce_z_axis_CoM(CV_CoM, CV_radii, SAM_CoM, SAM_radii, SPHERE_RADIUS, SOURC
 
     return CV_CoM, SAM_CoM
 
-def circle_detection(segmentations, NUMBER_OF_PROJECTIONS):
+def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
 
     circle_detection_accuracy = 0.88
 
@@ -142,7 +142,7 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS):
     
         circle_found = False
 
-        for i, mask in enumerate(segmentation):
+        for mask_num, mask in enumerate(segmentation):
 
             if circle_found:
                 continue
@@ -153,7 +153,7 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS):
             
             image = Image.fromarray((integer_segmentation_array * 255).astype(np.uint8))
             # image.show()
-            image.save(f'Segmentations/{projection_num}_{i}.png')
+            image.save(f'{output_folder}/Segmentations/{projection_num}_{mask_num}.png')
 
             image = cv2.medianBlur(np.array(image),5)
 
@@ -232,8 +232,6 @@ def segment_projections(projections):
 
         segmentations.append(segmenatation)
 
-        # print(segmentations)
-
     return segmentations
 
 def enhance_contrast(raw_projections):
@@ -281,31 +279,32 @@ def main():
     SPHERE_RADIUS = 25e-6 # 40 μm
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
 
-    file_path = "ProjectionsData.tiff"
+    file_path = 'ProjectionsData.tiff'
+    output_folder = 'Sphere Tracking Output'
 
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
     projections = enhance_contrast(raw_projections)
-    segmentations = segment_projections(projections)
-    CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, NUMBER_OF_PROJECTIONS)
-
+    segmentations = segment_projections(projections, output_folder)
+    CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder)
+    
     str_CV_xy_CoM = str(CV_xy_CoM)
     str_SAM_xy_CoM = str(SAM_xy_CoM)
     str_CV_radii = str(CV_radii)
     str_SAM_radii = str(SAM_radii)
     str_projection_idx = str(projection_idx)
-    
-    with open('CV_xy_CoM.txt', 'w') as file:
+
+    with open(f'{output_folder}/CV_xy_CoM.txt', 'w') as file:
         file.write(str_CV_xy_CoM)
-    with open('SAM_xy_CoM.txt', 'w') as file:
+    with open(f'{output_folder}/SAM_xy_CoM.txt', 'w') as file:
         file.write(str_SAM_xy_CoM)
-    with open('CV_radii.txt', 'w') as file:
+    with open(f'{output_folder}/CV_radii.txt', 'w') as file:
         file.write(str_CV_radii)
-    with open('SAM_radii.txt', 'w') as file:
+    with open(f'{output_folder}/SAM_radii.txt', 'w') as file:
         file.write(str_SAM_radii)
-    with open('projection_idx.txt', 'w') as file:
+    with open(f'{output_folder}/projection_idx.txt', 'w') as file:
         file.write(str_projection_idx)
 
-    CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
+    # CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
 
     # plot_sphere_trajectory(CV_CoM, SAM_CoM)
 

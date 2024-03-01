@@ -83,12 +83,14 @@ def add_missing_projections(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM
         if i not in projection_idx:
             CV_x = CV_x_poly(i)
             CV_y = CV_y_poly(i)
+            CV_z = np.nan
 
             SAM_x = SAM_x_poly(i)
             SAM_y = SAM_y_poly(i)
+            SAM_z = np.nan
 
-            CV_CoM.insert(i, [CV_x, CV_y])
-            SAM_CoM.insert(i, [SAM_x, SAM_y])
+            CV_CoM.insert(i, [CV_x, CV_y, CV_z])
+            SAM_CoM.insert(i, [SAM_x, SAM_y, SAM_z])
 
     return CV_CoM, SAM_CoM
 
