@@ -150,6 +150,8 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
     
     images = all_projections[indices]
 
+    print(f'Number of projections to process: {len(images)}')
+
     return images
 
 def main():
@@ -163,7 +165,7 @@ def main():
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
 
     file_path = 'ProjectionsData.tiff'
-    output_folder = 'Sphere Tracking Output'
+    output_folder = 'Output'
 
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
     projections = enhance_contrast(raw_projections)

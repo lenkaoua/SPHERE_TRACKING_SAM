@@ -3,8 +3,8 @@ import cv2
 import os
 
 # Specify the directory path
-folder_path = 'Sphere Tracking Output/Segmentations'
-folder_path = 'Images/Segmentations'
+folder_path = 'Output/Segmentations'
+# folder_path = 'Images/Segmentations'
 
 # Get the list of files in the directory
 files = os.listdir(folder_path)

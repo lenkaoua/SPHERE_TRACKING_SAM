@@ -208,7 +208,7 @@ def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=False):
     SAM_poly = np.poly1d(SAM_coeff)
 
     # Generate points for the fitted polynomials
-    x_fit = np.linspace(0, max(projection_idx), 100)
+    x_fit = np.linspace(0, len(projection_idx), 100)
     CV_y_fit = CV_poly(x_fit)
     SAM_fit = SAM_poly(x_fit)
 
@@ -257,7 +257,7 @@ def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=False):
     SAM_poly = np.poly1d(SAM_coeff)
 
     # Generate points for the fitted polynomials
-    x_fit = np.linspace(0, max(projection_idx), 100)
+    x_fit = np.linspace(0, len(projection_idx), 100)
     CV_y_fit = CV_poly(x_fit)
     SAM_y_fit = SAM_poly(x_fit)
 
@@ -445,9 +445,14 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
     
     images = all_projections[indices]
 
-    return images
+    first_image = images[0]
 
-def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS):
+    # Get the dimensions of the first image
+    image_height, image_width = first_image.shape
+
+    return images, image_height, image_width
+
+def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up):
 
     sinogram = []
 
@@ -460,9 +465,8 @@ def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS):
 
     sinogram = np.transpose(sinogram)
 
-    sinogram = np.roll(sinogram, 64, axis=0)
+    sinogram = np.roll(sinogram, int(shift_up), axis=0)
     
-
     # Create subplots
     fig, (ax1, ax2)  = plt.subplots(1, 2)
 
@@ -483,6 +487,24 @@ def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS):
     plt.show()
 
     return sinogram
+
+def determine_roll(CV_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width):
+
+    min_x = CV_y_poly(0)
+    max_x = CV_y_poly(NUMBER_OF_PROJECTIONS)
+    
+    print(min_x)
+    print(max_x)
+
+    middle = image_height / 2
+
+    actual_middle = (max_x - min_x) / 2 + min_x
+
+    shift = (middle - actual_middle) / 2
+
+    print(middle, actual_middle)
+
+    return shift 
 
 def main():
 
@@ -529,9 +551,9 @@ def main():
         # Use ast.literal_eval() to convert the string to a Python object (list of lists)
         projection_idx = ast.literal_eval(data)
 
-    projections = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
-    
-    plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS)
+    projections, image_height, image_width = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
+
+    # plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS)
 
     CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
     
@@ -543,9 +565,13 @@ def main():
 
     # Plot the deduced trajectory of the sphere with their axis of rotation
     plot_trajectory(CV_CoM, SAM_CoM, CV_rotation_axis, SAM_rotation_axis, CV_rotation_point, SAM_rotation_point)
-    
+
     CV_x_poly, SAM_x_poly = x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=True)
     CV_y_poly, SAM_y_poly = y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=True)
+
+    shift_up = determine_roll(SAM_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width)
+
+    plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up)
 
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
@@ -571,11 +597,10 @@ def main():
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [corrected_CV_projections, corrected_SAM_projections], projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [corrected_CV_projections, corrected_SAM_projections], projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
 
-
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array)
+    iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array)
 
 if __name__ == '__main__':
     main()
