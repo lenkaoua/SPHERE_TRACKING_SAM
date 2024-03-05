@@ -5,24 +5,86 @@ import scipy.optimize
 import tifffile
 import ast
 from skimage.transform import iradon
+from scipy.optimize import curve_fit
 
-def correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS):
+def correct_data(poly, CV_CoM, images, NUMBER_OF_PROJECTIONS, background_value):
+    corrected_images = []
 
-    CV_x_components = [point[0] for point in CV_CoM]
+    count = 0
+
+    for image, (x, y, z) in zip(images, CV_CoM):
+        expected_y = poly(count)
+        count += 1
+
+        shift = expected_y - y  # Calculate vertical shift based on the difference
+        # Creating a new array filled with NaNs
+        corrected_image = np.full_like(image, background_value, dtype=np.float64)
+        
+        if shift > 0:  # Invert: Shift the projection up
+            corrected_image[:int(-shift) or None, :] = image[int(shift):, :]
+        else:  # Invert: Shift the projection down
+            corrected_image[int(-shift):, :] = image[:int(shift) or None, :]
+
+        corrected_images.append(corrected_image)
+    
+    return corrected_images
+
+"""
+def correct_data(poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS):
+
+    CV_x_components = [point[1] for point in CV_CoM]
 
     # Calculate the residuals for CV and SAM curves
-    CV_x_residuals = CV_x_components - CV_x_poly(list(range(NUMBER_OF_PROJECTIONS)))
+    CV_x_residuals = CV_x_components - poly(list(range(NUMBER_OF_PROJECTIONS)))
+    # Calculate the maximum and minimum deltas across all projections
+    max_delta = max(abs(CV_x_residuals))
+    min_delta = min(abs(CV_x_residuals))
+
+    # Calculate the maximum padding needed for any projection
+    max_padding = max(max_delta, min_delta)
+
+    padded_projections = []
+
+    for i, projection in enumerate(projections):
+        delta_CV_x = CV_x_components[i] - poly(i)
+        delta_CV_x = int(delta_CV_x)
+
+        # Determine how many NaN rows to add to the top and bottom of the projection
+        if delta_CV_x > 0:
+            extra_top_rows = np.full((delta_CV_x, projection.shape[1]), np.nan)
+            extra_bottom_rows = np.zeros((0, projection.shape[1]))  # No NaNs needed at the bottom
+        elif delta_CV_x < 0:
+            extra_top_rows = np.zeros((0, projection.shape[1]))  # No NaNs needed at the top
+            extra_bottom_rows = np.full((abs(delta_CV_x), projection.shape[1]), np.nan)
+        else:
+            extra_top_rows = np.zeros((0, projection.shape[1]))  # No NaNs needed
+            extra_bottom_rows = np.zeros((0, projection.shape[1]))  # No NaNs needed
+
+        # Stack the extra rows with the projection, ensuring homogeneity
+        padded_projection = np.vstack([extra_bottom_rows[:min_delta], projection, extra_top_rows[:max_delta]])
+        padded_projections.append(padded_projection)
+
+    # Convert the list of arrays to a single numpy array
+    padded_projections = np.array(padded_projections)
+"""
+"""
+def correct_data(poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS):
+
+    CV_x_components = [point[1] for point in CV_CoM]
+
+    # Calculate the residuals for CV and SAM curves
+    CV_x_residuals = CV_x_components - poly(list(range(NUMBER_OF_PROJECTIONS)))
 
     # Find the index of the point with the maximum residual for both CV and SAM
-    max_CV_x_residual_idx = int(max(CV_x_residuals))
-    min_CV_x_residual_idx = int(min(CV_x_residuals))
+    max_CV_x_residual_idx = int(abs(max(CV_x_residuals)))
+    min_CV_x_residual_idx = int(abs(min(CV_x_residuals)))
 
     padded_projections = []  # Initialize an empty list
 
     for i, projection in enumerate(projections):
         
         extra_top_rows = np.full((max_CV_x_residual_idx, projection.shape[1]), np.nan)
-        extra_bottom_rows = np.full((-min_CV_x_residual_idx, projection.shape[1]), np.nan)
+        extra_bottom_rows = np.full((min_CV_x_residual_idx, projection.shape[1]), np.nan)
         padded_projection = np.vstack([extra_bottom_rows, projection, extra_top_rows])
 
         padded_projections.append(padded_projection)  # Append the padded projection to the list
@@ -35,14 +97,17 @@ def correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTION
     corrected_projections = []
 
     for i, projection in enumerate(padded_projections):
-
-        delta_CV_x = CV_x_components[i] - CV_x_poly(i)
+        print(CV_x_components[i])
+        print(poly(i))
+        delta_CV_x = CV_x_components[i] - poly(i)
         delta_CV_x = int(delta_CV_x)
+
+        print(int(delta_CV_x))
 
         if delta_CV_x > 0:
             
             trimmed_projection = projection[delta_CV_x:]
-            extra_top_rows = np.full((delta_CV_x, trimmed_projection.shape[1]), np.nan)
+            extra_top_rows = np.full((abs(delta_CV_x), trimmed_projection.shape[1]), np.nan)
             corrected_projection = np.vstack([trimmed_projection, extra_top_rows])
 
             corrected_projections.append(corrected_projection)
@@ -50,7 +115,7 @@ def correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTION
         elif delta_CV_x < 0:
             
             trimmed_projection = projection[:delta_CV_x]
-            extra_bottom_rows = np.full((-delta_CV_x, trimmed_projection.shape[1]), np.nan)
+            extra_bottom_rows = np.full((abs(delta_CV_x), trimmed_projection.shape[1]), np.nan)
             corrected_projection = np.vstack([extra_bottom_rows, trimmed_projection])
 
             corrected_projections.append(corrected_projection)
@@ -62,12 +127,23 @@ def correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTION
     corrected_projections = np.array(corrected_projections)
 
     return corrected_projections
+"""
 
-def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array):
+def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array, background_value, shift):
 
-    # number_of_projections = CV_sinogram_array.size[1]
+    number_of_projections = CV_sinogram_array.shape[1]
+    print(number_of_projections)
 
-    theta = np.linspace(0., 180., max(CV_sinogram_array.shape), endpoint=False)
+    theta = np.linspace(0., 360., int(number_of_projections), endpoint=False)
+
+    print("Length of theta array:", len(theta))
+    print("Shape of CV_sinogram_array:", CV_sinogram_array.shape)
+
+    CV_sinogram_array = -np.log(CV_sinogram_array/background_value)
+    CV_sinogram_array = np.roll(CV_sinogram_array, shift, axis=0)
+
+    SAM_sinogram_array = -np.log(SAM_sinogram_array/background_value)
+    SAM_sinogram_array = np.roll(SAM_sinogram_array, shift, axis=0)
 
     CV_reconstruction_fbp = iradon(CV_sinogram_array, theta=theta, filter_name='ramp')
     SAM_reconstruction_fbp = iradon(SAM_sinogram_array, theta=theta, filter_name='ramp')
@@ -194,23 +270,24 @@ def plot_sinograms(CV_sinogram, SAM_sinogram):
     plt.tight_layout()
     plt.show()
 
-def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=False):
+def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=False):
 
     CV_y_CoM = [y[1] for y in CV_CoM]
     SAM_y_CoM = [y[1] for y in SAM_CoM]
 
     # Fit a 3rd order polynomial for CV_y_CoM
-    CV_coeff = np.polyfit(projection_idx, CV_y_CoM, 3)
+    CV_coeff = np.polyfit(projection_idx, CV_y_CoM, 12)
     CV_poly = np.poly1d(CV_coeff)
 
     # Fit a 3rd order polynomial for SAM_y_CoM
-    SAM_coeff = np.polyfit(projection_idx, SAM_y_CoM, 3)
+    SAM_coeff = np.polyfit(projection_idx, SAM_y_CoM, 12)
     SAM_poly = np.poly1d(SAM_coeff)
 
     # Generate points for the fitted polynomials
-    x_fit = np.linspace(0, len(projection_idx), 100)
+    x_fit = np.linspace(0, NUMBER_OF_PROJECTIONS, 100)
     CV_y_fit = CV_poly(x_fit)
     SAM_fit = SAM_poly(x_fit)
+    
 
     if plot:
 
@@ -243,7 +320,8 @@ def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=False):
 
     return CV_poly, SAM_poly
 
-def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=False):
+
+def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=False):
     
     CV_x_CoM = [x[0] for x in CV_CoM]
     SAM_x_CoM = [x[0] for x in SAM_CoM]
@@ -257,7 +335,7 @@ def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=False):
     SAM_poly = np.poly1d(SAM_coeff)
 
     # Generate points for the fitted polynomials
-    x_fit = np.linspace(0, len(projection_idx), 100)
+    x_fit = np.linspace(0, NUMBER_OF_PROJECTIONS, 100)
     CV_y_fit = CV_poly(x_fit)
     SAM_y_fit = SAM_poly(x_fit)
 
@@ -332,10 +410,10 @@ def plot_trajectory(CV_CoM, SAM_CoM, CV_rotation_axis, SAM_rotation_axis, CV_rot
     # Get the current axes
     ax = plt.gca()
     
-    # # Reset the axes limits to their default values
-    ax.set_xlim(65, 85)
-    # ax.set_ylim(-1000, 2000)
-    ax.set_zlim(-0000, -300000)
+    # # # Reset the axes limits to their default values
+    # ax.set_xlim(65, 85)
+    # # ax.set_ylim(-1000, 2000)
+    # ax.set_zlim(-0000, -300000)
 
     ax.legend()
     plt.show()
@@ -452,7 +530,7 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
     return images, image_height, image_width
 
-def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up):
+def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value):
 
     sinogram = []
 
@@ -460,19 +538,21 @@ def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up):
 
         projection = projections[i]
 
-        x = projection[:,0]
+        x = projection[:,20]
         sinogram.append(x)
 
     sinogram = np.transpose(sinogram)
 
-    sinogram = np.roll(sinogram, int(shift_up), axis=0)
+    sinogram = np.roll(sinogram, shift_up, axis=0)
     
     # Create subplots
     fig, (ax1, ax2)  = plt.subplots(1, 2)
 
-    theta = np.linspace(0., 180., 652, endpoint=False)
+    theta = np.linspace(0., 360., 652, endpoint=False)
 
-    CV_reconstruction_fbp = iradon(-np.log(sinogram/47000), theta=theta, filter_name='ramp')
+    sinogram = -np.log(sinogram/background_value)
+
+    CV_reconstruction_fbp = iradon(sinogram, theta=theta, filter_name='ramp')
 
     ax1.set_title('Reconstruction')
 
@@ -492,7 +572,7 @@ def determine_roll(CV_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width):
 
     min_x = CV_y_poly(0)
     max_x = CV_y_poly(NUMBER_OF_PROJECTIONS)
-    
+
     print(min_x)
     print(max_x)
 
@@ -504,7 +584,16 @@ def determine_roll(CV_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width):
 
     print(middle, actual_middle)
 
-    return shift 
+    return 0 
+
+def determine_background_value(CV_x_sinogram_array):
+
+    background_value = np.average(CV_x_sinogram_array[:,2])
+
+    print(background_value)
+
+    return background_value
+
 
 def main():
 
@@ -515,8 +604,8 @@ def main():
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
     NUMBER_OF_PROJECTIONS = 652
 
-    projections_file_path = 'ProjectionsData.tiff'
-    data_folder = 'Images'
+    projections_file_path = 'TiffStack.tif'
+    data_folder = 'Images 2'
 
     # Open the text file containing the array
     with open(f'{data_folder}/CV_xy_CoM.txt', 'r') as file:
@@ -551,9 +640,13 @@ def main():
         # Use ast.literal_eval() to convert the string to a Python object (list of lists)
         projection_idx = ast.literal_eval(data)
 
-    projections, image_height, image_width = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
+    # Invert 
+    CV_xy_CoM = [[sublist[1], sublist[0]] for sublist in CV_xy_CoM]
+    SAM_xy_CoM = [[sublist[1], sublist[0]] for sublist in SAM_xy_CoM]
 
-    # plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS)
+    projections, image_height, image_width = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
+    print(projections[0].shape)
+    # plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
 
     CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
     
@@ -566,20 +659,30 @@ def main():
     # Plot the deduced trajectory of the sphere with their axis of rotation
     plot_trajectory(CV_CoM, SAM_CoM, CV_rotation_axis, SAM_rotation_axis, CV_rotation_point, SAM_rotation_point)
 
-    CV_x_poly, SAM_x_poly = x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=True)
-    CV_y_poly, SAM_y_poly = y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, plot=True)
+    CV_x_poly, SAM_x_poly = x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
+    CV_y_poly, SAM_y_poly = y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
 
     shift_up = determine_roll(SAM_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width)
-
-    plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up)
 
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
 
+    background_value = determine_background_value(CV_x_sinogram_array)
+
+    shift_up = 0
+
+
+    # ADD SINUSODAL FIT
+
+
+    plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array)
+    shift = 0
+
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
 
     CV_CoM, SAM_CoM = add_missing_projections(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS)
 
@@ -589,10 +692,10 @@ def main():
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array)
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
 
-    corrected_CV_projections = correct_data(CV_x_poly, CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS)
-    corrected_SAM_projections = correct_data(SAM_x_poly, SAM_y_poly, SAM_CoM, projections, NUMBER_OF_PROJECTIONS)
+    corrected_CV_projections = correct_data(CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS, background_value)
+    corrected_SAM_projections = correct_data(SAM_y_poly, SAM_CoM, projections, NUMBER_OF_PROJECTIONS, background_value)
 
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [corrected_CV_projections, corrected_SAM_projections], projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [corrected_CV_projections, corrected_SAM_projections], projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
@@ -600,7 +703,11 @@ def main():
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    iradon_reconstruction(CV_x_sinogram_array, SAM_x_sinogram_array)
+    plot_raw_sinogram(corrected_CV_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
+
+    plot_raw_sinogram(corrected_SAM_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
 
 if __name__ == '__main__':
     main()

@@ -3,7 +3,7 @@ import cv2
 import os
 
 # Specify the directory path
-folder_path = 'Output/Segmentations'
+folder_path = 'Images 2/Segmentations'
 # folder_path = 'Images/Segmentations'
 
 # Get the list of files in the directory
@@ -19,7 +19,7 @@ for filename in sorted_files:
     assert img is not None, "file could not be read, check with os.path.exists()"
     img = cv2.medianBlur(img,5)
     circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT_ALT,1,10,
-                                param1=1,param2=0.88,minRadius=0,maxRadius=0)
+                                param1=1,param2=0.85,minRadius=0,maxRadius=0)
     
     if circles is not None:
         circles = np.uint16(np.around(circles))

@@ -158,6 +158,7 @@ sam_vit_h_4b8939.pth
 ProjectionsData.tiff
 TiffStack.tif
 Output/
+Images 2/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
