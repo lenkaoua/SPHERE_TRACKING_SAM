@@ -237,19 +237,19 @@ def plot_trajectory(CoM, rotation_axis, rotation_point):
     ax = fig.add_subplot(111, projection='3d')
 
     # Plot the deduced positions of the sphere in red
-    ax.scatter(x_CoM, y_CoM, z_CoM, c='r', marker='o', label='CV CoM')
+    ax.scatter(x_CoM, y_CoM, z_CoM, c='purple', marker='o', label='CV CoM')
 
     # Plot the deduced point of rotation
-    ax.scatter(rotation_point[0], rotation_point[1], rotation_point[2], c='r', marker='x', label='CV Point of Rotation')
+    ax.scatter(rotation_point[0], rotation_point[1], rotation_point[2], c='black', marker='x', label='CV Point of Rotation')
 
     # Plot the deduced rotation axis
-    ax.quiver(rotation_point[0], rotation_point[1], rotation_point[2], rotation_axis[0], rotation_axis[2], rotation_axis[1], length=50, color='r', label='CV Axis of Rotation')
+    ax.quiver(rotation_point[0], rotation_point[1], rotation_point[2], rotation_axis[0], rotation_axis[2], rotation_axis[1], length=50, color='black', label='CV Axis of Rotation')
 
     # Set labels
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title('Trajectory of the Sphere')
+    ax.set_title('3D Trajectory of the Sphere')
 
     # Rotate the view
     ax.view_init(elev=25, azim=45, vertical_axis='y')
@@ -376,11 +376,11 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
 def import_text_outputs(data_folder, invert=False):
 
-    with open(f'{data_folder}/CV_xy_CoM.txt', 'r') as file:
+    with open(f'{data_folder}/xy_CoM.txt', 'r') as file:
         data = file.read()
         xy_CoM = ast.literal_eval(data)
     
-    with open(f'{data_folder}/CV_radii.txt', 'r') as file:
+    with open(f'{data_folder}/radii.txt', 'r') as file:
         data = file.read()
         radii = ast.literal_eval(data)
 
@@ -404,7 +404,7 @@ def main():
     DEGREES = 360
 
     projections_file_path = 'TiffStack.tif'
-    data_folder = 'Images 3'
+    data_folder = 'Data Folder'
 
     CoM, radii, projection_idx = import_text_outputs(data_folder, invert=False)
 
