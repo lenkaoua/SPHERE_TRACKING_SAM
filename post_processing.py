@@ -40,7 +40,7 @@ def plot_smoothness(reconstruction_fbp):
     plt.show()
 
 
-def correct_data(poly, CV_CoM, images, NUMBER_OF_PROJECTIONS, background_value):
+def correct_data(poly, CV_CoM, images, reverse=False):
     corrected_images = []
 
     count = 0
@@ -49,14 +49,24 @@ def correct_data(poly, CV_CoM, images, NUMBER_OF_PROJECTIONS, background_value):
         expected_y = poly(count)
         count += 1
 
-        shift = expected_y - y  # Calculate vertical shift based on the difference
-        # Creating a new array filled with NaNs
-        corrected_image = np.full_like(image, background_value, dtype=np.float64)
-        
-        if shift > 0:  # Invert: Shift the projection up
-            corrected_image[:int(-shift) or None, :] = image[int(shift):, :]
-        else:  # Invert: Shift the projection down
-            corrected_image[int(-shift):, :] = image[:int(shift) or None, :]
+        # Calculate vertical shift
+        shift = expected_y - y
+
+        # Creating a new array filled with ones, representing the background
+        corrected_image = np.full_like(image, 1, dtype=np.float64)
+
+        if not reverse:
+
+            if shift > 0:  # Invert: Shift the projection up
+                corrected_image[int(shift):, :] = image[:-int(shift) or None, :]
+            else:  # Invert: Shift the projection down
+                corrected_image[:int(shift) or None, :] = image[-int(shift):, :]
+
+        else:
+            if shift > 0:  # Invert: Shift the projection up
+                corrected_image[:int(-shift) or None, :] = image[int(shift):, :]
+            else:  # Invert: Shift the projection down
+                corrected_image[int(-shift):, :] = image[:int(shift) or None, :]
 
         corrected_images.append(corrected_image)
     
@@ -162,7 +172,7 @@ def correct_data(poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS):
     return corrected_projections
 """
 
-def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array, background_value, shift):
+def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array):
 
     number_of_projections = CV_sinogram_array.shape[1]
     print(number_of_projections)
@@ -172,11 +182,9 @@ def iradon_reconstruction(CV_sinogram_array, SAM_sinogram_array, background_valu
     print("Length of theta array:", len(theta))
     print("Shape of CV_sinogram_array:", CV_sinogram_array.shape)
 
-    CV_sinogram_array = -np.log(CV_sinogram_array/background_value)
-    CV_sinogram_array = np.roll(CV_sinogram_array, shift, axis=0)
+    CV_sinogram_array = -np.log(CV_sinogram_array)
 
-    SAM_sinogram_array = -np.log(SAM_sinogram_array/background_value)
-    SAM_sinogram_array = np.roll(SAM_sinogram_array, shift, axis=0)
+    SAM_sinogram_array = -np.log(SAM_sinogram_array)
 
     CV_reconstruction_fbp = iradon(CV_sinogram_array, theta=theta, filter_name='ramp')
     SAM_reconstruction_fbp = iradon(SAM_sinogram_array, theta=theta, filter_name='ramp')
@@ -321,7 +329,6 @@ def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot
     CV_y_fit = CV_poly(x_fit)
     SAM_fit = SAM_poly(x_fit)
     
-
     if plot:
 
         # Create figure and axes objects with two subplots
@@ -334,6 +341,7 @@ def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot
         ax1.set_ylabel('CV Y-axis')
         ax1.set_title('CV Sinogram along Y-axis')
         ax1.legend()
+        ax1.invert_yaxis()
         ax1.grid(True)
 
         # Plot for the second subplot (SAM)
@@ -343,12 +351,10 @@ def y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot
         ax2.set_ylabel('SAM Y-axis')
         ax2.set_title('SAM Sinogram along Y-axis')
         ax2.legend()
+        ax2.invert_yaxis()
         ax2.grid(True)
 
-        # Adjust layout
         plt.tight_layout()
-
-        # Show the plots
         plt.show()
 
     return CV_poly, SAM_poly
@@ -373,7 +379,7 @@ def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot
     SAM_y_fit = SAM_poly(x_fit)
 
     if plot:
-
+        
         # Create figure and axes objects with two subplots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))  # 1 row, 2 columns
 
@@ -384,6 +390,7 @@ def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot
         ax1.set_ylabel('CV X-axis')
         ax1.set_title('CV Sinogram along X-axis')
         ax1.legend()
+        ax1.invert_yaxis()
         ax1.grid(True)
 
         # Plot for the second subplot (SAM)
@@ -393,10 +400,12 @@ def x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot
         ax2.set_ylabel('SAM X-axis')
         ax2.set_title('SAM Sinogram along X-axis')
         ax2.legend()
+        ax2.invert_yaxis()
         ax2.grid(True)
 
         # Adjust layout
         plt.tight_layout()
+        plt.show()
 
     return CV_poly, SAM_poly
 
@@ -522,29 +531,32 @@ def get_rotation_axis(CoMs):
 
     return CV_rotation_axis, SAM_rotation_axis
 
-def deduce_z_axis_CoM(CV_CoM, CV_radii, SAM_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE):
+def deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE):
+
+    CV_CoM = []
+    SAM_CoM = []
 
     # Convert the source to detector distance and sphere radius to pixel dimensions
     SOURCE_DETECTOR_DISTANCE = SOURCE_DETECTOR_DISTANCE / PIXEL_SIZE
     SPHERE_RADIUS = SPHERE_RADIUS / PIXEL_SIZE
     
-    for i in range(len(CV_CoM)):
+    for i in range(len(CV_xy_CoM)):
         
         CV_magnification = SPHERE_RADIUS / CV_radii[i]
         CV_z_CoM = (SOURCE_DETECTOR_DISTANCE / CV_magnification) - SOURCE_DETECTOR_DISTANCE
 
         SAM_magnification = SPHERE_RADIUS / SAM_radii[i]
         SAM_z_CoM = (SOURCE_DETECTOR_DISTANCE / SAM_magnification) - SOURCE_DETECTOR_DISTANCE
-        
-        CV_CoM[i].append(CV_z_CoM)
 
-        SAM_CoM[i].append(SAM_z_CoM)
+        CV_CoM.append([CV_xy_CoM[i][0], CV_xy_CoM[i][1], CV_z_CoM])
+
+        SAM_CoM.append([SAM_xy_CoM[i][0], SAM_xy_CoM[i][1], SAM_z_CoM])
 
     # print(f'\nOpen CV CoMs: {CV_CoM}\nOpen CV Radii: {CV_radii}\nSAM CoMs: {SAM_CoM}\nSAM Radii: {SAM_radii}')
 
     return CV_CoM, SAM_CoM
 
-def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value):
+def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS):
 
     sinogram = []
 
@@ -554,19 +566,17 @@ def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_v
 
         x = projection[:,20]
         sinogram.append(x)
-
+        
     sinogram = np.transpose(sinogram)
-
-    sinogram = np.roll(sinogram, shift_up, axis=0)
     
     # Create subplots
     fig, (ax1, ax2)  = plt.subplots(1, 2)
 
     theta = np.linspace(0., 360., 652, endpoint=False)
 
-    sinogram = -np.log(sinogram/background_value)
+    sinogram1 = -np.log(sinogram)
 
-    CV_reconstruction_fbp = iradon(sinogram, theta=theta, filter_name='ramp')
+    CV_reconstruction_fbp = iradon(sinogram1, theta=theta, filter_name='ramp')
 
     ax1.set_title('Reconstruction')
 
@@ -582,31 +592,32 @@ def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_v
 
     return CV_reconstruction_fbp
 
-def determine_roll(CV_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width):
+def flat_field_correction(projections, background_value):
 
-    min_x = CV_y_poly(0)
-    max_x = CV_y_poly(NUMBER_OF_PROJECTIONS)
+    projections = projections / background_value
 
-    print(min_x)
-    print(max_x)
+    return projections
 
-    middle = image_height / 2
+def get_background_value(projections):
 
-    actual_middle = (max_x - min_x) / 2 + min_x
+    sinogram = []
 
-    shift = (middle - actual_middle) / 2
+    for projection in projections:
 
-    print(middle, actual_middle)
+        col = projection[:,20]
+        sinogram.append(col)
 
-    return 0 
+    sinogram = np.transpose(sinogram)
 
-def get_background_value(CV_x_sinogram_array):
-
-    background_value = np.average(CV_x_sinogram_array[:,2])
-
-    print(background_value)
+    background_value = np.average(sinogram[1,:])
 
     return background_value
+
+def shift_projections(projections, shift):
+    
+    projections = np.roll(projections, shift, axis=1)
+
+    return projections
 
 def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
@@ -653,7 +664,7 @@ def import_text_outputs(data_folder, invert=False):
         CV_xy_CoM = [[sublist[1], sublist[0]] for sublist in CV_xy_CoM]
         SAM_xy_CoM = [[sublist[1], sublist[0]] for sublist in SAM_xy_CoM]
 
-    return CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx
+    return CV_xy_CoM, CV_xy_CoM, CV_radii, CV_radii, projection_idx
 
 def main():
 
@@ -666,14 +677,15 @@ def main():
     NUMBER_OF_PROJECTIONS = 652
 
     projections_file_path = 'TiffStack.tif'
-    data_folder = 'Images 2'
+    data_folder = 'Images 3'
 
-    CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx = import_text_outputs(data_folder, invert=True)
+    CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx = import_text_outputs(data_folder, invert=False)
+
     projections, image_height, image_width = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
 
     # Get the deduced z-coordinate for each projection
     CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
-    
+
     # Get the rotation axis of the trajectory
     CV_rotation_axis, SAM_rotation_axis = get_rotation_axis([CV_CoM, SAM_CoM])
 
@@ -684,7 +696,9 @@ def main():
     plot_trajectory(CV_CoM, SAM_CoM, CV_rotation_axis, SAM_rotation_axis, CV_rotation_point, SAM_rotation_point)
 
     shift = 0
+    projections = shift_projections(projections, shift)
     background_value = get_background_value(projections)
+    projections = flat_field_correction(projections, background_value)
 
     CV_x_poly, SAM_x_poly = x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
     CV_y_poly, SAM_y_poly = y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
@@ -694,23 +708,16 @@ def main():
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
 
-    background_value = get_background_value(CV_x_sinogram_array)
-
-    shift_up = 0
-
     # ADD SINUSODAL FIT
 
-
-    reconstruction_fbp = plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    reconstruction_fbp = plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS)
 
     plot_smoothness(reconstruction_fbp)
 
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    shift = 0
-
-    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array)
 
     CV_CoM, SAM_CoM = add_missing_projections(CV_x_poly, SAM_x_poly, CV_y_poly, SAM_y_poly, CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS)
 
@@ -720,10 +727,10 @@ def main():
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    corrected_CV_projections = correct_data(CV_y_poly, CV_CoM, projections, NUMBER_OF_PROJECTIONS, background_value)
-    corrected_SAM_projections = correct_data(SAM_y_poly, SAM_CoM, projections, NUMBER_OF_PROJECTIONS, background_value)
+    corrected_CV_projections = correct_data(CV_y_poly, CV_CoM, projections, reverse=False)
+    corrected_SAM_projections = correct_data(SAM_y_poly, SAM_CoM, projections, reverse=False)
 
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [corrected_CV_projections, corrected_SAM_projections], projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [corrected_CV_projections, corrected_SAM_projections], projection_idx, NUMBER_OF_PROJECTIONS, complete=True)
@@ -731,12 +738,12 @@ def main():
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    CV_reconstruction_fbp = plot_raw_sinogram(corrected_CV_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    CV_reconstruction_fbp = plot_raw_sinogram(corrected_CV_projections, NUMBER_OF_PROJECTIONS)
     plot_smoothness(CV_reconstruction_fbp)
 
-    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
+    iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    SAM_reconstruction_fbp = plot_raw_sinogram(corrected_SAM_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    SAM_reconstruction_fbp = plot_raw_sinogram(corrected_SAM_projections, NUMBER_OF_PROJECTIONS)
     plot_smoothness(CV_reconstruction_fbp)
 
 if __name__ == '__main__':
