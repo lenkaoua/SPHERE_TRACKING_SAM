@@ -177,7 +177,7 @@ def main():
     SPHERE_RADIUS = 25e-6 # 40 μm
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
 
-    file_path = 'ProjectionsData.tiff'
+    file_path = 'TiffStack.tif'
     output_folder = 'Output'
 
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
