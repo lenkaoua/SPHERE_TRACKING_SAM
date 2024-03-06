@@ -48,8 +48,6 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
                 circles = np.uint16(np.around(circles))
                 param = circles[0, 0]
 
-                circle_found = True
-
                 if boolean_segmentation_array[param[1], param[0]]:
                     
                     bbox = mask['bbox']
@@ -66,6 +64,8 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
                     SAM_deduced_radius.append(radius)
 
                     print(f'Circle detected at projection number {projection_num}')
+
+                    circle_found = True
                     # print(f'OpenCV CoM: ({param[0]}, {param[1]})\nOpenCV Radius: {param[2]}')
                     # print(f'SAM CoM: ({CoM[0]}, {CoM[1]})\nSAM Radius: {radius}')
 
@@ -137,7 +137,6 @@ def enhance_contrast(raw_projections):
 
     return projections
 
-
 def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
     all_projections = tifffile.imread(file_path)
@@ -177,7 +176,7 @@ def main():
     str_CV_radii = str(CV_radii)
     str_SAM_radii = str(SAM_radii)
     str_projection_idx = str(projection_idx)
-
+    
     with open(f'{output_folder}/CV_xy_CoM.txt', 'w') as file:
         file.write(str_CV_xy_CoM)
     with open(f'{output_folder}/SAM_xy_CoM.txt', 'w') as file:
