@@ -12,42 +12,41 @@ files = os.listdir(folder_path)
 
 # Sort the list of files based on the numbers they start with
 sorted_files = sorted(files, key=lambda x: int(x.split('_')[0]) if '_' in x else float('inf'))
-file_names = [file for file in sorted_files]
+# file_names = [file for file in sorted_files]
 
-print(file_names)
+# print(file_names)
 
-# Iterate through each file in the directory
-for filename in sorted_files:
+# # Iterate through each file in the directory
+# for filename in sorted_files:
 
-    img = cv2.imread(f'{folder_path}/{filename}', cv2.IMREAD_GRAYSCALE)
-    assert img is not None, "file could not be read, check with os.path.exists()"
-    img = cv2.medianBlur(img,5)
-    circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT_ALT,1,10,
-                                param1=1,param2=0.85,minRadius=0,maxRadius=0)
+#     img = cv2.imread(f'{folder_path}/{filename}', cv2.IMREAD_GRAYSCALE)
+#     assert img is not None, "file could not be read, check with os.path.exists()"
+#     img = cv2.medianBlur(img,5)
+#     circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT_ALT,1,10,
+#                                 param1=1,param2=0.85,minRadius=0,maxRadius=0)
     
-    if circles is not None:
-        circles = np.uint16(np.around(circles))
+#     if circles is not None:
+#         circles = np.uint16(np.around(circles))
         
-        for param in circles[0, :]:
+#         for param in circles[0, :]:
         
-            print(filename)
-            print(f'OpenCV CoM: ({param[0]}, {param[1]})\nOpenCV Radius: {param[2]}')
-            print('-'*50)
-            cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
+#             print(filename)
+#             print(f'OpenCV CoM: ({param[0]}, {param[1]})\nOpenCV Radius: {param[2]}')
+#             print('-'*50)
+#             cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
 
-            # Draw the outer circle
-            cv2.circle(cimg,(param[0],param[1]),param[2],(0,255,0),2)
-            # Draw the center of the circle
-            cv2.circle(cimg,(param[0],param[1]),2,(0,0,255),3)
+#             # Draw the outer circle
+#             cv2.circle(cimg,(param[0],param[1]),param[2],(0,255,0),2)
+#             # Draw the center of the circle
+#             cv2.circle(cimg,(param[0],param[1]),2,(0,0,255),3)
             
-            cv2.imshow('Detected Circles',cimg)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+#             cv2.imshow('Detected Circles',cimg)
+#             cv2.waitKey(0)
+#             cv2.destroyAllWindows()
             
-        continue
+#         continue
 
-
-circle_detection_accuracy = 0.88
+circle_detection_accuracy = 0.84
 
 CV_deduced_CoM = []
 CV_deduced_radius = []
@@ -57,51 +56,54 @@ CV_deduced_radius = []
 
 projection_idx = []
 
+projection_num = '-'
 
 for filename in sorted_files:
 
+    if filename.split('_')[0] == projection_num and circle_found:
+        continue
+    elif filename.split('_')[0] != projection_num:
+        projection_num = filename.split('_')[0]
+        circle_found = False
 
+    if circle_found:
+        continue
+    
+    img = cv2.imread(f'{folder_path}/{filename}', cv2.IMREAD_GRAYSCALE)
+    assert img is not None, "file could not be read, check with os.path.exists()"
+    img = cv2.medianBlur(img,5)
 
-    circle_found = False
+    circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT_ALT,1,10,
+                        param1=1,param2=circle_detection_accuracy,minRadius=0,maxRadius=0)
+    
+    if circles is not None:
 
-    for mask_num, mask in enumerate(segmentation):
+        circles = np.uint16(np.around(circles))
+        param = circles[0, 0]
 
-        if circle_found:
-            continue
-        
-        img = cv2.imread(f'{folder_path}/{filename}', cv2.IMREAD_GRAYSCALE)
-        assert img is not None, "file could not be read, check with os.path.exists()"
-        img = cv2.medianBlur(img,5)
+        # bbox = mask['bbox']
+        # radius = (bbox[2] + bbox[3]) / 4
+        # radius = max(bbox[2], bbox[3]) / 2
+        # CoM = [bbox[0] + radius, bbox[1] + radius]
 
-        circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT_ALT,1,10,
-                            param1=1,param2=circle_detection_accuracy,minRadius=0,maxRadius=0)
-        
-        if circles is not None:
-            
-            circles = np.uint16(np.around(circles))
-            param = circles[0, 0]
+        projection_idx.append(projection_num)
 
-            if boolean_segmentation_array[param[1], param[0]]:
-                
-                # bbox = mask['bbox']
-                # radius = (bbox[2] + bbox[3]) / 4
-                # radius = max(bbox[2], bbox[3]) / 2
-                # CoM = [bbox[0] + radius, bbox[1] + radius]
+        CV_deduced_CoM.append([param[0], param[1]])
+        CV_deduced_radius.append(param[2])
 
-                projection_idx.append(projection_num)
+        # SAM_deduced_CoM.append(CoM)
+        # SAM_deduced_radius.append(radius)
 
-                CV_deduced_CoM.append([param[0], param[1]])
-                CV_deduced_radius.append(param[2])
+        circle_found = True
 
-                # SAM_deduced_CoM.append(CoM)
-                # SAM_deduced_radius.append(radius)
+        print(f'Circle detected at projection number {projection_num}')
 
-                circle_found = True
+str_CV_xy_CoM = str(CV_deduced_CoM)
 
-                print(f'Circle detected at projection number {projection_num}')
-
-
-str_CV_xy_CoM = str(CV_xy_CoM)
+print(str_CV_xy_CoM)
+print(projection_idx)
+print(len(projection_idx))
+print(CV_deduced_radius)
 
 with open(f'/CV_xy_CoM.txt', 'w') as file:
-        file.write(str_CV_xy_CoM)
+    file.write(str_CV_xy_CoM)

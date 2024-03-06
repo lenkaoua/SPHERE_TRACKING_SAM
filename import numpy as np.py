@@ -3,7 +3,6 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import ast 
 
-
 data_folder = 'Images 2'
 
 with open(f'{data_folder}/projection_idx.txt', 'r') as file:

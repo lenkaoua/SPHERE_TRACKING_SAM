@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
 
-    circle_detection_accuracy = 0.88
+    circle_detection_accuracy = 0.85
 
     CV_deduced_CoM = []
     CV_deduced_radius = []
@@ -24,12 +24,13 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
     for projection_num, segmentation in enumerate(segmentations):
     
         circle_found = False
+        hollow_circle_found = False
 
         for mask_num, mask in enumerate(segmentation):
 
             if circle_found:
                 continue
-
+            
             # print(f'PROJECTION NUM: {projection_num}')
             boolean_segmentation_array = mask['segmentation']
             integer_segmentation_array = boolean_segmentation_array.astype(int)
@@ -48,13 +49,13 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
                 circles = np.uint16(np.around(circles))
                 param = circles[0, 0]
 
+                bbox = mask['bbox']
+                # radius = (bbox[2] + bbox[3]) / 4
+                radius = max(bbox[2], bbox[3]) / 2
+                CoM = [bbox[0] + radius, bbox[1] + radius]
+
                 if boolean_segmentation_array[param[1], param[0]]:
                     
-                    bbox = mask['bbox']
-                    # radius = (bbox[2] + bbox[3]) / 4
-                    radius = max(bbox[2], bbox[3]) / 2
-                    CoM = [bbox[0] + radius, bbox[1] + radius]
-
                     projection_idx.append(projection_num)
 
                     CV_deduced_CoM.append([param[0], param[1]])
@@ -64,8 +65,21 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
                     SAM_deduced_radius.append(radius)
 
                     print(f'Circle detected at projection number {projection_num}')
-
                     circle_found = True
+                else:
+                    print(f'Hollow circle detected at projection number {projection_num}')
+                    hollow_circle_found = True
+        
+        if not circle_found and hollow_circle_found:
+
+            projection_idx.append(projection_num)
+
+            CV_deduced_CoM.append([param[0], param[1]])
+            CV_deduced_radius.append(param[2])
+
+            SAM_deduced_CoM.append(CoM)
+            SAM_deduced_radius.append(radius)
+
                     # print(f'OpenCV CoM: ({param[0]}, {param[1]})\nOpenCV Radius: {param[2]}')
                     # print(f'SAM CoM: ({CoM[0]}, {CoM[1]})\nSAM Radius: {radius}')
 
