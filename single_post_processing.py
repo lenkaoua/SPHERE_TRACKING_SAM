@@ -88,6 +88,28 @@ def deduce_missing_CoM(x_poly, y_poly, CoM, projection_idx, NUMBER_OF_PROJECTION
 
     return CoM
 
+def plot_sinograms(CV_sinogram, SAM_sinogram):
+
+    # Create subplots
+    fig, (ax1, ax2)  = plt.subplots(1, 2, figsize=(8, 4))
+
+    # Plot CV_sinogram
+    cax1 = ax1.imshow(CV_sinogram, aspect='auto', cmap='viridis')
+    ax1.set_xlabel('Projection Number')
+    ax1.set_ylabel('Y-Values')
+    ax1.set_title('Sphere Tracking Y-Sinogram')
+    fig.colorbar(cax1, ax=ax1, shrink=0.8)
+
+    # Plot SAM_sinogram
+    cax2 = ax2.imshow(SAM_sinogram, aspect='auto', cmap='viridis')
+    ax2.set_xlabel('Projection Number')
+    ax2.set_ylabel('X-Values')
+    ax2.set_title('Sphere Tracking X-Sinogram')
+    fig.colorbar(cax2, ax=ax2, shrink=0.8)
+
+    plt.tight_layout()
+    plt.show()
+
 def y_sinograms(CoM, projections, projection_idx, complete=False):
 
     y_sinogram = []
@@ -139,28 +161,6 @@ def x_sinograms(CoM, projections, projection_idx, complete=False):
     x_sinogram = np.transpose(x_sinogram)
 
     return x_sinogram
-
-def plot_sinograms(CV_sinogram, SAM_sinogram):
-
-    # Create subplots
-    fig, (ax1, ax2)  = plt.subplots(1, 2, figsize=(8, 4))
-
-    # Plot CV_sinogram
-    cax1 = ax1.imshow(CV_sinogram, aspect='auto', cmap='viridis')
-    ax1.set_xlabel('Projection Number')
-    ax1.set_ylabel('Y-Values')
-    ax1.set_title('Sphere Tracking Y-Sinogram')
-    fig.colorbar(cax1, ax=ax1, shrink=0.8)
-
-    # Plot SAM_sinogram
-    cax2 = ax2.imshow(SAM_sinogram, aspect='auto', cmap='viridis')
-    ax2.set_xlabel('Projection Number')
-    ax2.set_ylabel('X-Values')
-    ax2.set_title('Sphere Tracking X-Sinogram')
-    fig.colorbar(cax2, ax=ax2, shrink=0.8)
-
-    plt.tight_layout()
-    plt.show()
 
 def y_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
 
@@ -226,6 +226,53 @@ def x_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
         plt.show()
 
     return x_poly
+
+def log_correction(projections):
+
+    projections = -np.log(projections)
+
+    return projections
+
+def flat_field_correction(projections, background_value):
+
+    projections = projections / background_value
+
+    return projections
+
+def get_background_value(projections):
+
+    sinogram = []
+
+    for projection in projections:
+
+        col = projection[:,20]
+        sinogram.append(col)
+
+    sinogram = np.transpose(sinogram)
+
+    background_value = np.average(sinogram[1,:])
+
+    return background_value
+
+def shift_projections(projections, shift=0):
+    
+    projections = np.roll(projections, shift, axis=1)
+
+    return projections
+
+def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
+
+    all_projections = tifffile.imread(file_path)
+
+    # Calculate the total number of images
+    num_projections = len(all_projections)
+
+    # Calculate the spacing between projections to select approximately 100 equally spaced images
+    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
+    
+    images = all_projections[indices]
+
+    return images
 
 def plot_trajectory(CoM, rotation_axis, rotation_point):
 
@@ -326,53 +373,6 @@ def deduce_z_axis_CoM(xy_CoM, radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PI
         CoM.append([xy_CoM[i][0], xy_CoM[i][1], z_CoM])
 
     return CoM
-
-def log_correction(projections):
-
-    projections = -np.log(projections)
-
-    return projections
-
-def flat_field_correction(projections, background_value):
-
-    projections = projections / background_value
-
-    return projections
-
-def get_background_value(projections):
-
-    sinogram = []
-
-    for projection in projections:
-
-        col = projection[:,20]
-        sinogram.append(col)
-
-    sinogram = np.transpose(sinogram)
-
-    background_value = np.average(sinogram[1,:])
-
-    return background_value
-
-def shift_projections(projections, shift=0):
-    
-    projections = np.roll(projections, shift, axis=1)
-
-    return projections
-
-def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
-
-    all_projections = tifffile.imread(file_path)
-
-    # Calculate the total number of images
-    num_projections = len(all_projections)
-
-    # Calculate the spacing between projections to select approximately 100 equally spaced images
-    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
-    
-    images = all_projections[indices]
-
-    return images
 
 def import_text_outputs(data_folder, invert=False):
 
