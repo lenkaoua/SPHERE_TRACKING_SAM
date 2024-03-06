@@ -7,6 +7,39 @@ import ast
 from skimage.transform import iradon
 from scipy.optimize import curve_fit
 
+def plot_smoothness(reconstruction_fbp):
+
+    # Extract the middle row index
+    middle_row_index = len(reconstruction_fbp) // 2
+    # Define the number of values you want to extract around the middle
+    num_values = 150
+    # Calculate the starting index for extraction
+    start_index = max(0, middle_row_index - num_values // 2) - 20
+    # Calculate the ending index for extraction
+    end_index = min(len(reconstruction_fbp[middle_row_index]), start_index + num_values) + 20
+
+    # Extract the portion of the middle row
+    middle_row_portion = reconstruction_fbp[middle_row_index, start_index:end_index]
+
+    plt.hist(middle_row_portion, bins=50, color='skyblue', edgecolor='black')
+    plt.show()
+
+    # Plot the entire matrix
+    plt.imshow(reconstruction_fbp, cmap='viridis', aspect='auto', interpolation='nearest')
+
+    # Highlight the portion of the middle row within the original matrix
+    plt.axhline(y=middle_row_index, color='red', linestyle='--', linewidth=2)
+    plt.axvline(x=start_index, color='red', linestyle='--', linewidth=2)
+    plt.axvline(x=end_index, color='red', linestyle='--', linewidth=2)
+
+    # Add a colorbar
+    plt.colorbar()
+    plt.title('Original Matrix with Highlighted Middle Row Portion')
+
+    # Show the plot
+    plt.show()
+
+
 def correct_data(poly, CV_CoM, images, NUMBER_OF_PROJECTIONS, background_value):
     corrected_images = []
 
@@ -193,7 +226,7 @@ def y_sinograms(CoMs, projections, projection_idx, NUMBER_OF_PROJECTIONS, comple
                 y_CoM = int(CoM[i][0])
                 x = projection[:,y_CoM]
                 y_sinogram.append(x)
-            
+
         else:
 
             for i, idx in enumerate(projection_idx):
@@ -511,25 +544,6 @@ def deduce_z_axis_CoM(CV_CoM, CV_radii, SAM_CoM, SAM_radii, SPHERE_RADIUS, SOURC
 
     return CV_CoM, SAM_CoM
 
-def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
-
-    all_projections = tifffile.imread(file_path)
-
-    # Calculate the total number of images
-    num_projections = len(all_projections)
-
-    # Calculate the spacing between projections to select approximately 100 equally spaced images
-    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
-    
-    images = all_projections[indices]
-
-    first_image = images[0]
-
-    # Get the dimensions of the first image
-    image_height, image_width = first_image.shape
-
-    return images, image_height, image_width
-
 def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value):
 
     sinogram = []
@@ -566,7 +580,7 @@ def plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_v
     plt.tight_layout()
     plt.show()
 
-    return sinogram
+    return CV_reconstruction_fbp
 
 def determine_roll(CV_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width):
 
@@ -586,7 +600,7 @@ def determine_roll(CV_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width):
 
     return 0 
 
-def determine_background_value(CV_x_sinogram_array):
+def get_background_value(CV_x_sinogram_array):
 
     background_value = np.average(CV_x_sinogram_array[:,2])
 
@@ -594,11 +608,58 @@ def determine_background_value(CV_x_sinogram_array):
 
     return background_value
 
+def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
+
+    all_projections = tifffile.imread(file_path)
+
+    # Calculate the total number of images
+    num_projections = len(all_projections)
+
+    # Calculate the spacing between projections to select approximately 100 equally spaced images
+    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
+    
+    images = all_projections[indices]
+
+    first_image = images[0]
+
+    # Get the dimensions of the first image
+    image_height, image_width = first_image.shape
+
+    return images, image_height, image_width
+
+def import_text_outputs(data_folder, invert=False):
+
+    with open(f'{data_folder}/CV_xy_CoM.txt', 'r') as file:
+        data = file.read()
+        CV_xy_CoM = ast.literal_eval(data)
+
+    with open(f'{data_folder}/SAM_xy_CoM.txt', 'r') as file:
+        data = file.read()
+        SAM_xy_CoM = ast.literal_eval(data)
+    
+    with open(f'{data_folder}/CV_radii.txt', 'r') as file:
+        data = file.read()
+        CV_radii = ast.literal_eval(data)
+
+    with open(f'{data_folder}/SAM_radii.txt', 'r') as file:
+        data = file.read()
+        SAM_radii = ast.literal_eval(data)
+
+    with open(f'{data_folder}/projection_idx.txt', 'r') as file:
+        data = file.read()
+        projection_idx = ast.literal_eval(data)
+
+    if invert:
+        CV_xy_CoM = [[sublist[1], sublist[0]] for sublist in CV_xy_CoM]
+        SAM_xy_CoM = [[sublist[1], sublist[0]] for sublist in SAM_xy_CoM]
+
+    return CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx
 
 def main():
 
     PIXEL_SIZE = 1.1e-6 # 1.1 μm
     SOURCE_SAMPLE_DISTANCE = 220e-2 # 220 cm
+    ENERGY = 8e3 # 8 keV
     SAMPLE_DETECTOR_DISTANCE = 1e-2 # 1 cm
     SPHERE_RADIUS = 25e-6 # 40 μm
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
@@ -607,55 +668,10 @@ def main():
     projections_file_path = 'TiffStack.tif'
     data_folder = 'Images 2'
 
-    # Open the text file containing the array
-    with open(f'{data_folder}/CV_xy_CoM.txt', 'r') as file:
-        # Read the contents of the file
-        data = file.read()
-        # Use ast.literal_eval() to convert the string to a Python object (list of lists)
-        CV_xy_CoM = ast.literal_eval(data)
-
-    # Open the text file containing the array
-    with open(f'{data_folder}/SAM_xy_CoM.txt', 'r') as file:
-        # Read the contents of the file
-        data = file.read()
-        # Use ast.literal_eval() to convert the string to a Python object (list of lists)
-        SAM_xy_CoM = ast.literal_eval(data)
-    
-        # Open the text file containing the array
-    with open(f'{data_folder}/CV_radii.txt', 'r') as file:
-        # Read the contents of the file
-        data = file.read()
-        # Use ast.literal_eval() to convert the string to a Python object (list of lists)
-        CV_radii = ast.literal_eval(data)
-
-    with open(f'{data_folder}/SAM_radii.txt', 'r') as file:
-        # Read the contents of the file
-        data = file.read()
-        # Use ast.literal_eval() to convert the string to a Python object (list of lists)
-        SAM_radii = ast.literal_eval(data)
-
-    with open(f'{data_folder}/projection_idx.txt', 'r') as file:
-        # Read the contents of the file
-        data = file.read()
-        # Use ast.literal_eval() to convert the string to a Python object (list of lists)
-        projection_idx = ast.literal_eval(data)
-
-    CV_xy_CoM = [[582, 32], [578, 32], [582, 32], [577, 32], [578, 32], [583, 33], [579, 32], [579, 32], [576, 32], [575, 32], [578, 31], [574, 33], [575, 32], [579, 33], [574, 32], [575, 32], [577, 32], [582, 31], [575, 32], [573, 31], [575, 32], [579, 33], [574, 32], [572, 32], [569, 32], [572, 32], [571, 32], [572, 32], [566, 33], [572, 32], [562, 31], [564, 32], [563, 30], [566, 31], [559, 32], [564, 32], [565, 32], [557, 32], [556, 31], [560, 31], [561, 32], [559, 32], [550, 32], [560, 32], [559, 32], [550, 32], [556, 31], [550, 32], [550, 31], [553, 32], [548, 33], [550, 32], [546, 33], [541, 32], [543, 32], [543, 32], [539, 32], [538, 32], [542, 32], [534, 32], [535, 32], [534, 32], [534, 32], [528, 31], [526, 32], [530, 32], [529, 32], [530, 32], [521, 32], [520, 33], [522, 32], [518, 31], [520, 31], [517, 32], [511, 32], [513, 32], [515, 32], [507, 31], [506, 32], [505, 32], [503, 32], [500, 32], [503, 32], [504, 32], [502, 32], [499, 31], [497, 32], [494, 31], [491, 32], [487, 32], [487, 31], [488, 32], [481, 32], [487, 32], [483, 32], [478, 33], [475, 32], [474, 32], [472, 32], [468, 32], [462, 32], [457, 32], [464, 32], [453, 32], [455, 31], [447, 31], [448, 31], [442, 32], [442, 32], [433, 32], [440, 30], [435, 32], [435, 32], [433, 31], [430, 31], [427, 31], [418, 31], [417, 31], [413, 32], [418, 32], [412, 32], [408, 32], [404, 32], [398, 32], [401, 31], [388, 32], [388, 31], [383, 32], [383, 32], [381, 32], [374, 32], [376, 32], [378, 32], [375, 31], [364, 33], [366, 32], [359, 32], [365, 33], [354, 32], [357, 31], [349, 32], [352, 32], [350, 32], [348, 32], [341, 32], [344, 32], [342, 31], [333, 33], [334, 32], [330, 32], [326, 32], [320, 32], [327, 32], [320, 32], [322, 32], [317, 32], [316, 32], [308, 33], [310, 32], [302, 32], [302, 32], [295, 32], [296, 31], [291, 32], [289, 32], [284, 31], [286, 30], [283, 32], [279, 32], [277, 33], [278, 32], [273, 31], [272, 32], [269, 32], [264, 31], [261, 32], [264, 32], [262, 33], [253, 32], [251, 32], [252, 31], [249, 32], [254, 32], [246, 32], [247, 32], [240, 32], [239, 32], [241, 32], [242, 32], [236, 32], [238, 32], [229, 32], [230, 32], [227, 32], [226, 32], [225, 32], [221, 31], [223, 31], [221, 32], [220, 32], [217, 32], [210, 31], [207, 32], [214, 32], [206, 31], [207, 32], [206, 32], [207, 32], [196, 32], [200, 31], [200, 33], [199, 31], [198, 32], [195, 32], [190, 32], [188, 32], [185, 32], [187, 33], [190, 33], [187, 33], [179, 33], [175, 32], [177, 32], [177, 32], [171, 32], [172, 32], [176, 31], [168, 32], [172, 32], [169, 33], [169, 32], [159, 32], [158, 32], [159, 32], [161, 32], [157, 32], [156, 32], [156, 32], [151, 32], [152, 32], [148, 31], [143, 32], [147, 31], [149, 32], [150, 32], [142, 31], [141, 32], [137, 32], [143, 32], [140, 32], [140, 31], [136, 31], [135, 32], [142, 32], [135, 32], [134, 32], [130, 32], [134, 32], [128, 31], [136, 32], [127, 33], [132, 33], [125, 31], [131, 32], [127, 31], [125, 32], [129, 32], [128, 32], [126, 31], [122, 33], [129, 32], [123, 32], [123, 32], [120, 31], [124, 31], [119, 31], [121, 32], [125, 31], [124, 33], [118, 32], [118, 32], [115, 32], [119, 32], [116, 31], [119, 32], [118, 31], [118, 31], [117, 33], [123, 32], [118, 32], [124, 32], [122, 32], [124, 33], [124, 31], [124, 31], [123, 32], [120, 32], [122, 32], [121, 33], [123, 32], [119, 32], [120, 32], [126, 31], [126, 32], [120, 32], [128, 32], [121, 32], [129, 31], [126, 32], [129, 32], [125, 32], [125, 32], [132, 32], [129, 32], [128, 32], [130, 32], [135, 32], [136, 32], [133, 32], [131, 32], [129, 32], [138, 32], [140, 32], [132, 33], [133, 31], [138, 32], [137, 32], [134, 32], [139, 32], [140, 33], [141, 32], [145, 31], [147, 32], [150, 30], [148, 32], [149, 32], [148, 32], [156, 31], [150, 32], [160, 32], [152, 32], [154, 31], [162, 31], [162, 32], [161, 31], [167, 32], [166, 32], [168, 32], [166, 32], [166, 32], [165, 33], [170, 32], [170, 32], [173, 32], [176, 32], [174, 31], [180, 30], [184, 31], [179, 32], [179, 32], [190, 33], [184, 32], [184, 32], [189, 32], [193, 33], [188, 32], [197, 32], [193, 31], [202, 32], [202, 33], [198, 33], [204, 32], [206, 31], [205, 32], [206, 32], [210, 31], [215, 32], [216, 32], [219, 32], [221, 32], [223, 32], [222, 32], [230, 32], [230, 32], [230, 32], [230, 32], [241, 32], [237, 32], [240, 32], [244, 32], [249, 32], [249, 32], [259, 32], [261, 32], [259, 31], [264, 31], [267, 32], [271, 32], [276, 32], [275, 31], [272, 32], [280, 32], [277, 32], [281, 32], [283, 32], [286, 31], [290, 31], [290, 32], [297, 33], [294, 31], [302, 31], [298, 30], [304, 31], [314, 33], [322, 31], [325, 32], [327, 32], [325, 32], [332, 32], [335, 32], [332, 32], [339, 31], [337, 31], [343, 31], [338, 32], [348, 33], [349, 32], [345, 32], [348, 32], [349, 32], [351, 32], [361, 32], [356, 32], [358, 31], [366, 32], [362, 32], [369, 32], [375, 32], [371, 33], [377, 32], [382, 32], [378, 32], [387, 32], [392, 32], [393, 31], [391, 30], [396, 32], [400, 32], [401, 31], [408, 32], [402, 32], [405, 32], [406, 32], [410, 33], [415, 32], [420, 32], [419, 32], [423, 31], [425, 32], [422, 32], [430, 32], [434, 32], [425, 31], [432, 32], [436, 32], [441, 32], [440, 32], [438, 31], [446, 32], [443, 31], [451, 31], [444, 32], [448, 31], [457, 32], [459, 31], [455, 31], [462, 32], [459, 32], [462, 32], [469, 32], [469, 32], [468, 32], [469, 32], [474, 32], [476, 32], [479, 31], [474, 32], [482, 32], [480, 31], [480, 32], [485, 32], [485, 32], [493, 32], [492, 33], [496, 31], [499, 32], [499, 32], [493, 31], [497, 33], [500, 32], [498, 32], [508, 31], [511, 32], [506, 32], [507, 31], [514, 32], [514, 32], [517, 32], [514, 32], [517, 33], [515, 32], [518, 32], [519, 31], [528, 32], [530, 32], [523, 32], [525, 32], [526, 32], [530, 32], [532, 31], [532, 31], [537, 32], [540, 32], [539, 32], [541, 31], [544, 32], [536, 32], [547, 31], [304, 55], [547, 32], [545, 32], [545, 32], [547, 32], [554, 31], [550, 33], [547, 31], [547, 31], [553, 32], [559, 31], [556, 32], [558, 31], [555, 32], [562, 31], [565, 32], [563, 31], [567, 32], [564, 31], [561, 32], [564, 32], [562, 32], [564, 31], [566, 31], [572, 32], [565, 32], [572, 32], [576, 31], [575, 32], [574, 32], [571, 32], [578, 33], [571, 31], [578, 33], [576, 32], [576, 32], [574, 32], [575, 31], [579, 32], [581, 32], [581, 32], [580, 31], [575, 32], [577, 32], [577, 31], [576, 32], [577, 32], [586, 32], [576, 31], [584, 32], [585, 32], [579, 32], [583, 32]]
-
-    SAM_xy_CoM = CV_xy_CoM
-
-    projection_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 29, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 109, 111, 112, 113, 115, 116, 119, 120, 121, 122, 123, 124, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 140, 141, 144, 146, 147, 148, 149, 150, 151, 152, 153, 155, 156, 157, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 173, 174, 175, 176, 177, 178, 179, 180, 183, 184, 186, 188, 189, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 251, 252, 253, 254, 255, 256, 257, 258, 260, 261, 263, 264, 265, 266, 268, 269, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 287, 288, 289, 290, 291, 292, 293, 294, 295, 297, 298, 299, 300, 301, 302, 304, 305, 306, 307, 309, 310, 311, 312, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 330, 331, 332, 333, 334, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 347, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 376, 377, 378, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 418, 419, 420, 421, 422, 423, 424, 426, 427, 428, 429, 430, 431, 433, 434, 436, 437, 439, 440, 442, 443, 445, 446, 448, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 463, 464, 465, 466, 467, 469, 471, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 504, 506, 507, 508, 509, 510, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 608, 609, 610, 611, 612, 614, 615, 616, 617, 619, 621, 622, 623, 624, 625, 626, 628, 629, 630, 632, 633, 634, 635, 637, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649, 650, 651]
-
-    CV_xy_CoM = [[sublist[1], sublist[0]] for sublist in CV_xy_CoM]
-    SAM_xy_CoM = [[sublist[1], sublist[0]] for sublist in SAM_xy_CoM]
-
-    CV_radii = [9, 9, 10, 9, 9, 9, 9, 9, 10, 10, 9, 10, 9, 9, 9, 10, 9, 9, 10, 9, 10, 9, 10, 9, 10, 10, 10, 9, 10, 10, 9, 9, 10, 10, 9, 9, 9, 9, 10, 10, 9, 10, 10, 9, 9, 10, 10, 12, 9, 10, 10, 10, 10, 9, 9, 9, 10, 9, 9, 10, 9, 10, 9, 9, 10, 10, 9, 10, 9, 9, 9, 9, 10, 10, 10, 9, 10, 10, 9, 9, 9, 9, 9, 9, 10, 9, 9, 9, 10, 9, 10, 9, 10, 9, 10, 9, 9, 10, 10, 9, 9, 10, 10, 9, 10, 9, 9, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 10, 9, 9, 10, 9, 9, 9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9, 10, 9, 9, 9, 10, 10, 10, 10, 9, 10, 9, 10, 10, 10, 9, 9, 9, 10, 9, 9, 8, 9, 9, 9, 9, 9, 10, 9, 10, 9, 9, 10, 9, 9, 10, 9, 9, 9, 9, 10, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 9, 10, 10, 9, 9, 9, 10, 10, 10, 9, 10, 9, 9, 10, 10, 9, 10, 9, 9, 9, 9, 10, 9, 9, 8, 9, 8, 9, 10, 10, 10, 9, 9, 10, 10, 9, 9, 9, 9, 10, 9, 9, 10, 10, 9, 9, 9, 9, 9, 9, 9, 9, 10, 8, 10, 10, 9, 10, 9, 10, 10, 9, 10, 9, 9, 9, 9, 10, 9, 9, 10, 9, 10, 9, 9, 10, 10, 10, 10, 10, 9, 10, 9, 9, 9, 10, 9, 10, 10, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 10, 10, 9, 10, 10, 9, 10, 9, 9, 8, 9, 10, 9, 9, 10, 9, 9, 9, 10, 10, 9, 10, 9, 10, 9, 10, 9, 9, 9, 10, 9, 9, 10, 10, 9, 9, 10, 10, 9, 9, 9, 10, 9, 10, 10, 9, 10, 10, 10, 9, 10, 9, 9, 9, 9, 10, 9, 9, 9, 10, 9, 9, 10, 10, 10, 9, 10, 10, 10, 9, 10, 9, 9, 9, 10, 9, 10, 10, 10, 10, 9, 10, 10, 10, 9, 9, 10, 10, 9, 9, 9, 9, 10, 9, 9, 10, 9, 9, 10, 10, 10, 9, 10, 9, 10, 10, 9, 10, 10, 9, 10, 10, 9, 9, 10, 9, 10, 10, 9, 9, 9, 9, 10, 10, 9, 10, 9, 10, 10, 9, 10, 9, 9, 10, 10, 9, 9, 9, 10, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9, 10, 9, 10, 9, 9, 9, 9, 9, 10, 9, 10, 10, 10, 10, 10, 9, 10, 10, 10, 9, 10, 10, 9, 9, 9, 10, 10, 9, 9, 9, 10, 9, 9, 9, 8, 9, 9, 10, 10, 9, 10, 11, 11, 9, 9, 10, 9, 10, 10, 9, 9, 10, 10, 9, 10, 10, 9, 9, 9, 9, 10, 10, 10, 10, 9, 9, 9, 9, 9, 10, 10, 10, 9, 9, 9, 9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 9, 9]
-    SAM_radii = CV_radii
-
+    CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx = import_text_outputs(data_folder, invert=True)
     projections, image_height, image_width = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
-    print(projections[0].shape)
-    # plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
 
+    # Get the deduced z-coordinate for each projection
     CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
     
     # Get the rotation axis of the trajectory
@@ -667,22 +683,27 @@ def main():
     # Plot the deduced trajectory of the sphere with their axis of rotation
     plot_trajectory(CV_CoM, SAM_CoM, CV_rotation_axis, SAM_rotation_axis, CV_rotation_point, SAM_rotation_point)
 
+    shift = 0
+    background_value = get_background_value(projections)
+
     CV_x_poly, SAM_x_poly = x_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
     CV_y_poly, SAM_y_poly = y_curve_fitting(CV_CoM, SAM_CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
 
-    shift_up = determine_roll(SAM_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width)
+    # shift_up = determine_roll(SAM_y_poly, NUMBER_OF_PROJECTIONS, image_height, image_width)
 
     CV_x_sinogram_array, SAM_x_sinogram_array = x_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
     CV_y_sinogram_array, SAM_y_sinogram_array = y_sinograms([CV_CoM, SAM_CoM], [projections, projections], projection_idx, NUMBER_OF_PROJECTIONS)
 
-    background_value = determine_background_value(CV_x_sinogram_array)
+    background_value = get_background_value(CV_x_sinogram_array)
 
     shift_up = 0
 
     # ADD SINUSODAL FIT
 
 
-    plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    reconstruction_fbp = plot_raw_sinogram(projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+
+    plot_smoothness(reconstruction_fbp)
 
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
@@ -710,11 +731,13 @@ def main():
     plot_sinograms(CV_x_sinogram_array, SAM_x_sinogram_array)
     plot_sinograms(CV_y_sinogram_array, SAM_y_sinogram_array)
 
-    plot_raw_sinogram(corrected_CV_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    CV_reconstruction_fbp = plot_raw_sinogram(corrected_CV_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    plot_smoothness(CV_reconstruction_fbp)
 
     iradon_reconstruction(CV_y_sinogram_array, SAM_y_sinogram_array, background_value, shift)
 
-    plot_raw_sinogram(corrected_SAM_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    SAM_reconstruction_fbp = plot_raw_sinogram(corrected_SAM_projections, NUMBER_OF_PROJECTIONS, shift_up, background_value)
+    plot_smoothness(CV_reconstruction_fbp)
 
 if __name__ == '__main__':
     main()

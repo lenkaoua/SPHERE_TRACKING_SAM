@@ -8,10 +8,26 @@ import tifffile
 from skimage import exposure
 from tqdm import tqdm
 
+def save_outputs(CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx, output_folder):
 
-def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
+    str_CV_xy_CoM = str(CV_xy_CoM)
+    str_SAM_xy_CoM = str(SAM_xy_CoM)
+    str_CV_radii = str(CV_radii)
+    str_SAM_radii = str(SAM_radii)
+    str_projection_idx = str(projection_idx)
+    
+    with open(f'{output_folder}/CV_xy_CoM.txt', 'w') as file:
+        file.write(str_CV_xy_CoM)
+    with open(f'{output_folder}/SAM_xy_CoM.txt', 'w') as file:
+        file.write(str_SAM_xy_CoM)
+    with open(f'{output_folder}/CV_radii.txt', 'w') as file:
+        file.write(str_CV_radii)
+    with open(f'{output_folder}/SAM_radii.txt', 'w') as file:
+        file.write(str_SAM_radii)
+    with open(f'{output_folder}/projection_idx.txt', 'w') as file:
+        file.write(str_projection_idx)
 
-    circle_detection_accuracy = 0.84
+def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.88):
 
     CV_deduced_CoM = []
     CV_deduced_radius = []
@@ -31,12 +47,10 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
             if circle_found:
                 continue
             
-            # print(f'PROJECTION NUM: {projection_num}')
             boolean_segmentation_array = mask['segmentation']
             integer_segmentation_array = boolean_segmentation_array.astype(int)
             
             image = Image.fromarray((integer_segmentation_array * 255).astype(np.uint8))
-            # image.show()
             image.save(f'{output_folder}/Segmentations/{projection_num}_{mask_num}.png')
 
             image = cv2.medianBlur(np.array(image),5)
@@ -50,7 +64,6 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
                 param = circles[0, 0]
 
                 bbox = mask['bbox']
-                # radius = (bbox[2] + bbox[3]) / 4
                 radius = max(bbox[2], bbox[3]) / 2
                 CoM = [bbox[0] + radius, bbox[1] + radius]
 
@@ -80,24 +93,6 @@ def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
             SAM_deduced_CoM.append(CoM)
             SAM_deduced_radius.append(radius)
 
-                    # print(f'OpenCV CoM: ({param[0]}, {param[1]})\nOpenCV Radius: {param[2]}')
-                    # print(f'SAM CoM: ({CoM[0]}, {CoM[1]})\nSAM Radius: {radius}')
-
-                    # cimg = cv2.cvtColor(image,cv2.COLOR_GRAY2BGR)
-
-            #         # Draw the outer circle
-            #         cv2.circle(cimg,(param[0],param[1]),param[2],(0,255,0),2)
-            #         # Draw the center of the circle
-            #         cv2.circle(cimg,(param[0],param[1]),2,(0,0,255),3)
-
-            #         cv2.imshow('Detected Circles',cimg)
-            #         cv2.waitKey(0)
-            #         cv2.destroyAllWindows()
-            #     else:
-            #         print('Circle Outine Detected, Invalid.')
-            # else:
-            #     print('No circles detected.')
-
     return CV_deduced_CoM, CV_deduced_radius, SAM_deduced_CoM, SAM_deduced_radius, projection_idx
 
 def segment_projections(projections):
@@ -120,11 +115,6 @@ def segment_projections(projections):
         
         image = cv2.cvtColor(np.array(image_object), cv2.COLOR_BGR2RGB)
 
-        # Display the image using OpenCV
-        # cv2.imshow("Image", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
         segmenatation = mask_generator.generate(image)
 
         segmentations.append(segmenatation)
@@ -142,10 +132,6 @@ def enhance_contrast(raw_projections):
 
         # Rescale the image values to the range [0, 255]
         projection = (projection * 255).astype('uint8')
-
-        # plt.imshow(projection)
-        # plt.axis('off')
-        # plt.show()
         
         projections.append(projection)
 
@@ -177,40 +163,17 @@ def main():
     SPHERE_RADIUS = 25e-6 # 40 μm
     SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
 
+    circle_detection_accuracy = 0.84
+
     file_path = 'TiffStack.tif'
     output_folder = 'Output'
 
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
     projections = enhance_contrast(raw_projections)
     segmentations = segment_projections(projections)
-    CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder)
+    CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, output_folder, circle_detection_accuracy=circle_detection_accuracy)
     
-    str_CV_xy_CoM = str(CV_xy_CoM)
-    str_SAM_xy_CoM = str(SAM_xy_CoM)
-    str_CV_radii = str(CV_radii)
-    str_SAM_radii = str(SAM_radii)
-    str_projection_idx = str(projection_idx)
-    
-    with open(f'{output_folder}/CV_xy_CoM.txt', 'w') as file:
-        file.write(str_CV_xy_CoM)
-    with open(f'{output_folder}/SAM_xy_CoM.txt', 'w') as file:
-        file.write(str_SAM_xy_CoM)
-    with open(f'{output_folder}/CV_radii.txt', 'w') as file:
-        file.write(str_CV_radii)
-    with open(f'{output_folder}/SAM_radii.txt', 'w') as file:
-        file.write(str_SAM_radii)
-    with open(f'{output_folder}/projection_idx.txt', 'w') as file:
-        file.write(str_projection_idx)
-
-    # CV_CoM, SAM_CoM = deduce_z_axis_CoM(CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE)
-
-    # plot_sphere_trajectory(CV_CoM, SAM_CoM)
-
-    # # Get the rotation axis of the trajectory
-    # CV_rotation_axis, SAM_rotation_axis = get_rotation_axis([CV_CoM, SAM_CoM])
-
-    # # Get the point of rotation of the trajectory
-    # CV_rotation_point, SAM_rotation_point =  get_rotation_point([CV_CoM, SAM_CoM])
+    save_outputs(CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx, output_folder)
 
 if __name__ == '__main__':
     main()
