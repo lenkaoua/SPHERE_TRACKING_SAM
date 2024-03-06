@@ -46,7 +46,7 @@ sorted_files = sorted(files, key=lambda x: int(x.split('_')[0]) if '_' in x else
             
 #         continue
 
-circle_detection_accuracy = 0.84
+circle_detection_accuracy = 0.86
 
 CV_deduced_CoM = []
 CV_deduced_radius = []

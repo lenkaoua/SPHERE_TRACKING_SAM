@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 def circle_detection(segmentations, NUMBER_OF_PROJECTIONS, output_folder):
 
-    circle_detection_accuracy = 0.85
+    circle_detection_accuracy = 0.84
 
     CV_deduced_CoM = []
     CV_deduced_radius = []
