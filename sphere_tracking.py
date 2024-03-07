@@ -51,11 +51,10 @@ def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.8
             integer_segmentation_array = boolean_segmentation_array.astype(int)
             
             image = Image.fromarray((integer_segmentation_array * 255).astype(np.uint8))
-            image.save(f'{output_folder}/Segmentations/{projection_num}_{mask_num}.png')
 
-            image = cv2.medianBlur(np.array(image),5)
+            medianBlur_image = cv2.medianBlur(np.array(image),5)
 
-            circles = cv2.HoughCircles(image,cv2.HOUGH_GRADIENT_ALT,1,10,
+            circles = cv2.HoughCircles(medianBlur_image,cv2.HOUGH_GRADIENT_ALT,1,10,
                                 param1=1,param2=circle_detection_accuracy,minRadius=0,maxRadius=0)
             
             if circles is not None:
@@ -80,11 +79,19 @@ def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.8
                     SAM_deduced_CoM.append(SAM_CoM)
                     SAM_deduced_radius.append(SAM_radius)
 
-                    print(f'Circle detected at projection number {projection_num}')
                     circle_found = True
+
+                    image.save(f'{output_folder}/Segmentations/{projection_num}_{mask_num}.png')
+
+                    print(f'Circle detected at projection number {projection_num}')
+
                 else:
-                    print(f'Hollow circle detected at projection number {projection_num}')
+
+                    hollow_circle_mask_image = image
+
                     hollow_circle_found = True
+
+                    print(f'Hollow circle detected at projection number {projection_num}')
         
         if not circle_found and hollow_circle_found:
 
@@ -95,6 +102,8 @@ def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.8
 
             SAM_deduced_CoM.append(SAM_CoM)
             SAM_deduced_radius.append(SAM_radius)
+
+            hollow_circle_mask_image.save(f'{output_folder}/Segmentations/{projection_num}_{mask_num}.png')
 
     return CV_deduced_CoM, CV_deduced_radius, SAM_deduced_CoM, SAM_deduced_radius, projection_idx
 
@@ -118,9 +127,9 @@ def segment_projections(projections):
         
         image = cv2.cvtColor(np.array(image_object), cv2.COLOR_BGR2RGB)
 
-        segmenatation = mask_generator.generate(image)
+        segmentation = mask_generator.generate(image)
 
-        segmentations.append(segmenatation)
+        segmentations.append(segmentation)
 
     return segmentations
 
