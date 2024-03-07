@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import tifffile
 import cv2
 import os
 
@@ -15,7 +17,7 @@ def save_outputs(CoM, radii, projection_idx, output_folder):
     with open(f'{output_folder}/projection_idx.txt', 'w') as file:
         file.write(projection_idx)
 
-def circle_detection(segmentation_files, segmentation_files_path, circle_detection_accuracy, plot=False, disp=False):
+def circle_detection(segmentation_files, projections, segmentation_files_path, circle_detection_accuracy, plot=False, disp=False):
 
     CoM = []
     radii = []
@@ -45,7 +47,7 @@ def circle_detection(segmentation_files, segmentation_files_path, circle_detecti
 
             circles = np.uint16(np.around(circles))
             param = circles[0, 0]
-
+            
             projection_idx.append(projection_num)
 
             CoM.append([param[0], param[1]])
@@ -54,14 +56,16 @@ def circle_detection(segmentation_files, segmentation_files_path, circle_detecti
             circle_found = True
 
             if plot:
-                cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
-                cv2.circle(cimg,(param[0],param[1]),param[2],(0,255,0),2)
-                # Draw the center of the circle
-                cv2.circle(cimg,(param[0],param[1]),2,(0,0,255),3)
+                fig, (ax1, ax2) = plt.subplots(1, 2)
 
-                cv2.imshow('Detected Circles',cimg)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+                ax1.imshow(img, cmap='gray')
+                circle = plt.Circle((param[0], param[1]), param[2], color='red', fill=False, linewidth=1)
+                ax1.add_artist(circle)
+
+                ax2.imshow(projections[projection_num], cmap='gray')
+
+                plt.title(f'Sphere Tracking at Projection {projection_num}')
+                plt.show()
 
             if disp:
                 print(f'Circle detected at projection {projection_num}')
@@ -82,18 +86,40 @@ def get_segmentation_files(segmentation_files_path):
 
     return segmentation_files
 
+def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
+    
+    all_projections = tifffile.imread(file_path)
+
+    # Calculate the total number of images
+    num_projections = len(all_projections)
+
+    # Calculate the spacing between projections to select approximately 100 equally spaced images
+    indices = np.linspace(0, num_projections - 1, NUMBER_OF_PROJECTIONS, dtype=int)
+    
+    images = all_projections[indices]
+
+    print(f'Number of projections to process: {len(images)}')
+
+    return images
+
 def main():
 
     # Specify the segmentation files path
     segmentation_files_path = 'Images 3/Segmentations'
     # Specify the output folder
     output_folder = 'Data Folder'
+    # Specify the projections file path
+    projections_file_path = 'TiffStack.tif'
+    # Specify the number of projections
+    NUMBER_OF_PROJECTIONS = 652
     # Set the circle detection tolerance-accuracy factor
     circle_detection_accuracy = 0.86
 
+    projections = import_tiff_projections(projections_file_path, NUMBER_OF_PROJECTIONS)
+
     segmentation_files = get_segmentation_files(segmentation_files_path)
     
-    CoM, radii, projection_idx = circle_detection(segmentation_files, segmentation_files_path, circle_detection_accuracy, plot=False, disp=False)
+    CoM, radii, projection_idx = circle_detection(segmentation_files, projections, segmentation_files_path, circle_detection_accuracy, plot=True, disp=False)
 
     save_outputs(CoM, radii, projection_idx, output_folder)
 

@@ -180,11 +180,11 @@ def y_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
         fig, ax = plt.subplots(1, 1)  # 1 row, 2 columns
 
         # Plot for the first subplot (CV)
-        ax.scatter(projection_idx, y_CoM, marker='o', color='orange', label='Data', s=3)
-        ax.plot(points, y_fit, 'k-', label='Fitted curve (CV)', linewidth=1)
+        ax.scatter(projection_idx, y_CoM, marker='o', color='orange', label='Sphere Centre of Mass', s=3)
+        ax.plot(points, y_fit, 'k-', label='Fitted Curve', linewidth=1)
         ax.set_xlabel('Projection Number')
-        ax.set_ylabel('CV Y-axis')
-        ax.set_title('CV Sinogram along Y-axis')
+        ax.set_ylabel('Centre of Mass Y-Coordinate')
+        ax.set_title("Y-Coordinates of the Sphere's Centre of Mass and Curve Fitting vs Projection Number")
         ax.legend()
         ax.invert_yaxis()
         ax.grid(True)
@@ -212,11 +212,11 @@ def x_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
         fig, ax = plt.subplots(1, 1)  # 1 row, 2 columns
 
         # Plot for the first subplot (CV)
-        ax.scatter(projection_idx, x_CoM, marker='o', color='orange', label='Data', s=6)
-        ax.plot(points, x_fit, 'k-', label='Fitted line (CV)')
+        ax.scatter(projection_idx, x_CoM, marker='o', color='purple', label='Sphere Centre of Mass', s=6)
+        ax.plot(points, x_fit, 'k-', label='Fitted Line')
         ax.set_xlabel('Projection Number')
-        ax.set_ylabel('CV X-axis')
-        ax.set_title('CV Sinogram along X-axis')
+        ax.set_ylabel('Centre of Mass X-Coordinate')
+        ax.set_title("X-Coordinates of the Sphere's Centre of Mass and Line Fitting vs Projection Number")
         ax.legend()
         ax.invert_yaxis()
         ax.grid(True)
