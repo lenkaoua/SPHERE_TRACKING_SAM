@@ -7,6 +7,17 @@ import ast
 from skimage.transform import iradon
 from scipy.optimize import curve_fit
 
+def plot_crispness_comparison(before_averaged_columns, after_averaged_columns):
+
+    # Plot the averaged values
+    plt.plot(before_averaged_columns)
+    plt.plot(after_averaged_columns)
+    plt.xlabel('Pixel Index')
+    plt.ylabel('Intensity')
+    plt.title('Averaged Intensity Plot of Middle 10 Rows')
+    plt.grid(True)
+    plt.show()
+
 def plot_results(row_sinogram, CoM_sinogram, iradon_reconstruction):
 
     # Create subplots
@@ -115,18 +126,13 @@ def iradon_reconstruction(row_sinogram, DEGREES):
     # Extract the middle row index
     middle_row_index = iradon_reconstruction.shape[0] // 2
 
-    # Extract the middle row of the matrix
-    middle_row = iradon_reconstruction[middle_row_index, :]
+    # Extract the middle 10 rows of the matrix
+    middle_rows = iradon_reconstruction[middle_row_index - 2 : middle_row_index + 2, :]
 
-    # Plot the intensity values of the middle row
-    plt.plot(middle_row)
-    plt.xlabel('Pixel Index')
-    plt.ylabel('Intensity')
-    plt.title('Intensity Plot of Middle Row')
-    plt.grid(True)
-    plt.show()
+    # Average each column
+    averaged_columns = np.mean(middle_rows, axis=0)
 
-    return iradon_reconstruction
+    return iradon_reconstruction, averaged_columns
 
 def deduce_missing_CoM(y_sinusoidal_fit_params, average_x_CoM, CoM, projection_idx, NUMBER_OF_PROJECTIONS):
 
@@ -478,7 +484,7 @@ def main():
     # Obtain the sinogram for a fixed row in the projections
     raw_row_sinogram = sinogram(CoM, projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
-    raw_reconstruction = iradon_reconstruction(raw_row_sinogram, DEGREES)
+    raw_reconstruction, before_averaged_columns = iradon_reconstruction(raw_row_sinogram, DEGREES)
     # Plot the complete sphere tracking sinogram, and the the raw fixed-row sinogram with its reconstruction
     plot_results(raw_row_sinogram, CoM_complete_sinogram, raw_reconstruction)
 
@@ -494,9 +500,11 @@ def main():
     # Obtain the sinogram for a fixed row in the projections
     corrected_row_sinogram = sinogram(CoM, corrected_projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
-    corrected_reconstruction = iradon_reconstruction(corrected_row_sinogram, DEGREES)
+    corrected_reconstruction, after_averaged_columns = iradon_reconstruction(corrected_row_sinogram, DEGREES)
     # Plot the corrected sphere tracking sinogram, and the the corrected fixed-row sinogram with its reconstruction
     plot_results(corrected_row_sinogram, CoM_corrected_sinogram, corrected_reconstruction)
+
+    plot_crispness_comparison(before_averaged_columns, after_averaged_columns)
 
 if __name__ == '__main__':
     main()
