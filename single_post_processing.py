@@ -49,19 +49,19 @@ def correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False):
 
         # Calculate vertical shift
         y_shift = int(expected_y_CoM - y_CoM)
-
+    
         # Creating a new array filled with ones, representing the background
         corrected_projection = np.full_like(projection, 0, dtype=np.float64)
 
         if not reverse:
-            if y_shift >= 1:  # Invert: Shift the projection up
+            if y_shift >= 1:
                 corrected_projection[int(y_shift):, :] = projection[:-int(y_shift) or None, :]
-            elif y_shift <= 1:  # Invert: Shift the projection down
+            elif y_shift <= 1:
                 corrected_projection[:int(y_shift) or None, :] = projection[-int(y_shift):, :]
         else:
-            if y_shift >= 1:  # Invert: Shift the projection up
+            if y_shift >= 1:
                 corrected_projection[:int(-y_shift) or None, :] = projection[int(y_shift):, :]
-            elif y_shift <= 1:  # Invert: Shift the projection down
+            elif y_shift <= 1:
                 corrected_projection[int(-y_shift):, :] = projection[:int(y_shift) or None, :]
 
         corrected_projections.append(corrected_projection)
@@ -93,38 +93,31 @@ def deduce_missing_CoM(x_poly, y_sinusoidal_fit_params, CoM, projection_idx, NUM
 
     return CoM
 
-def plot_sinograms(CV_sinogram, SAM_sinogram):
+def plot_sinogram(sinogram):
 
     # Create subplots
     fig, (ax1, ax2)  = plt.subplots(1, 2, figsize=(8, 4))
 
     # Plot CV_sinogram
-    cax1 = ax1.imshow(CV_sinogram, aspect='auto', cmap='viridis')
+    cax1 = ax1.imshow(sinogram, aspect='auto', cmap='viridis')
     ax1.set_xlabel('Projection Number')
     ax1.set_ylabel('Y-Values')
     ax1.set_title('Sphere Tracking Y-Sinogram')
     fig.colorbar(cax1, ax=ax1, shrink=0.8)
 
-    # Plot SAM_sinogram
-    cax2 = ax2.imshow(SAM_sinogram, aspect='auto', cmap='viridis')
-    ax2.set_xlabel('Projection Number')
-    ax2.set_ylabel('X-Values')
-    ax2.set_title('Sphere Tracking X-Sinogram')
-    fig.colorbar(cax2, ax=ax2, shrink=0.8)
-
     plt.tight_layout()
     plt.show()
 
-def y_sinograms(CoM, projections, projection_idx, complete=False):
+def sinogram(CoM, projections, projection_idx, complete=False):
 
-    y_sinogram = []
+    sinogram = []
 
     if complete == True:
         for i, projection in enumerate(projections):
 
             y_CoM = int(CoM[i][0])
             slice = projection[:,y_CoM]
-            y_sinogram.append(slice)
+            sinogram.append(slice)
 
     elif not complete:
         for i, idx in enumerate(projection_idx):
@@ -132,40 +125,17 @@ def y_sinograms(CoM, projections, projection_idx, complete=False):
             projection = projections[idx]
             y_CoM = int(CoM[i][0])
             slice = projection[:,y_CoM]
-            y_sinogram.append(slice)
+            sinogram.append(slice)
 
     elif complete == 'Fixed Row Sinogram':
         for projection in projections:
 
             slice = projection[:,20]
-            y_sinogram.append(slice)
+            sinogram.append(slice)
 
-    y_sinogram = np.transpose(y_sinogram)
+    sinogram = np.transpose(sinogram)
 
-    return y_sinogram
-
-def x_sinograms(CoM, projections, projection_idx, complete=False):
-
-    x_sinogram = []
-    
-    if complete:
-        for i, projection in enumerate(projections):
-
-            x_CoM = int(CoM[i][1])
-            slice = projection[x_CoM,:]
-            x_sinogram.append(slice)
-
-    else:
-        for i, idx in enumerate(projection_idx):
-
-            projection = projections[idx]
-            x_CoM = int(CoM[i][1])
-            slice = projection[x_CoM,:]
-            x_sinogram.append(slice)
-
-    x_sinogram = np.transpose(x_sinogram)
-
-    return x_sinogram
+    return sinogram
 
 # Define the fitting function
 def sinusoidal_func(x, A, B, C, D):
@@ -446,25 +416,23 @@ def main():
     x_poly = x_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
     y_sinusoidal_fit_params = y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True)
 
-    # Obtain the x and y sinograms of the sphere tracking
-    x_CoM_raw_sinogram = x_sinograms(CoM, projections, projection_idx)
-    y_CoM_raw_sinogram = y_sinograms(CoM, projections, projection_idx)
+    # Obtain the y sinogram of the sphere tracking
+    y_CoM_raw_sinogram = sinogram(CoM, projections, projection_idx)
 
     # Plot the raw sphere tracking sinograms
-    plot_sinograms(y_CoM_raw_sinogram, x_CoM_raw_sinogram)
+    plot_sinogram(y_CoM_raw_sinogram)
 
     # Deduce the missing centre of mass coordinates using the x and y polynomial fits
     CoM = deduce_missing_CoM(x_poly, y_sinusoidal_fit_params, CoM, projection_idx, NUMBER_OF_PROJECTIONS)
 
-    # Obtain the complete x and y sinograms of the sphere tracking
-    x_CoM_complete_sinogram = x_sinograms(CoM, projections, projection_idx, complete=True)
-    y_CoM_complete_sinogram = y_sinograms(CoM, projections, projection_idx, complete=True)
+    # Obtain the complete y sinograms of the sphere tracking
+    y_CoM_complete_sinogram = sinogram(CoM, projections, projection_idx, complete=True)
 
     # Plot the complete sphere tracking sinograms
-    plot_sinograms(y_CoM_complete_sinogram, x_CoM_complete_sinogram)
+    plot_sinogram(y_CoM_complete_sinogram)
 
     # Obtain the sinogram for a fixed row in the projections
-    y_raw_row_sinogram = y_sinograms(CoM, projections, projection_idx, complete='Fixed Row Sinogram')
+    y_raw_row_sinogram = sinogram(CoM, projections, projection_idx, complete='Fixed Row Sinogram')
     # Reconstruct the fixed-row sinogram
     raw_reconstruction = iradon_reconstruction(y_raw_row_sinogram, DEGREES)
     # Plot the complete sphere tracking sinogram, and the the raw fixed-row sinogram with its reconstruction
@@ -473,15 +441,14 @@ def main():
     # Correct the projections using the y polynomial fit
     corrected_projections = correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False)
 
-    # Obtain the x and y sinograms of the corrected sphere tracking
-    x_CoM_corrected_sinogram = x_sinograms(CoM, corrected_projections, projection_idx, complete=True)
-    y_CoM_corrected_sinogram = y_sinograms(CoM, corrected_projections, projection_idx, complete=True)
+    # Obtain the y sinogram of the corrected sphere tracking
+    y_CoM_corrected_sinogram = sinogram(CoM, corrected_projections, projection_idx, complete=True)
     
     # Plot the corrected sphere tracking sinograms
-    plot_sinograms(y_CoM_corrected_sinogram, x_CoM_corrected_sinogram)
+    plot_sinogram(y_CoM_corrected_sinogram)
 
     # Obtain the sinogram for a fixed row in the projections
-    y_corrected_row_sinogram = y_sinograms(CoM, corrected_projections, projection_idx, complete='Fixed Row Sinogram')
+    y_corrected_row_sinogram = sinogram(CoM, corrected_projections, projection_idx, complete='Fixed Row Sinogram')
     # Reconstruct the fixed-row sinogram
     corrected_reconstruction = iradon_reconstruction(y_corrected_row_sinogram, DEGREES)
     # Plot the corrected sphere tracking sinogram, and the the corrected fixed-row sinogram with its reconstruction
