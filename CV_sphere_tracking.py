@@ -47,11 +47,15 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
 
             circles = np.uint16(np.around(circles))
             param = circles[0, 0]
-            
+
+            x_CoM = param[0]
+            y_CoM = param[1]
+            radius = param[2]
+
             projection_idx.append(projection_num)
 
-            CoM.append([param[0], param[1]])
-            radii.append(param[2])
+            CoM.append([x_CoM, y_CoM])
+            radii.append(radius)
             
             circle_found = True
 
@@ -59,7 +63,7 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
                 fig, (ax1, ax2) = plt.subplots(1, 2)
 
                 ax1.imshow(img, cmap='gray')
-                circle = plt.Circle((param[0], param[1]), param[2], color='red', fill=False, linewidth=1)
+                circle = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
                 ax1.add_artist(circle)
 
                 ax2.imshow(projections[projection_num], cmap='gray')

@@ -64,18 +64,21 @@ def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.8
                 param = circles[0, 0]
 
                 bbox = mask['bbox']
-                radius = max(bbox[2], bbox[3]) / 2
-                CoM = [bbox[0] + radius, bbox[1] + radius]
+                SAM_radius = max(bbox[2], bbox[3]) / 2
+                SAM_CoM = [bbox[0] + SAM_radius, bbox[1] + SAM_radius]
+                
+                CV_radius = param[2]
+                CV_CoM = [param[0], param[1]]
 
-                if boolean_segmentation_array[param[1], param[0]]:
+                if boolean_segmentation_array[CV_CoM[1], CV_CoM[0]]:
                     
                     projection_idx.append(projection_num)
 
-                    CV_deduced_CoM.append([param[0], param[1]])
-                    CV_deduced_radius.append(param[2])
+                    CV_deduced_CoM.append(CV_CoM)
+                    CV_deduced_radius.append(CV_radius)
 
-                    SAM_deduced_CoM.append(CoM)
-                    SAM_deduced_radius.append(radius)
+                    SAM_deduced_CoM.append(SAM_CoM)
+                    SAM_deduced_radius.append(SAM_radius)
 
                     print(f'Circle detected at projection number {projection_num}')
                     circle_found = True
@@ -87,11 +90,11 @@ def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.8
 
             projection_idx.append(projection_num)
 
-            CV_deduced_CoM.append([param[0], param[1]])
-            CV_deduced_radius.append(param[2])
+            CV_deduced_CoM.append(CV_CoM)
+            CV_deduced_radius.append(CV_radius)
 
-            SAM_deduced_CoM.append(CoM)
-            SAM_deduced_radius.append(radius)
+            SAM_deduced_CoM.append(SAM_CoM)
+            SAM_deduced_radius.append(SAM_radius)
 
     return CV_deduced_CoM, CV_deduced_radius, SAM_deduced_CoM, SAM_deduced_radius, projection_idx
 
