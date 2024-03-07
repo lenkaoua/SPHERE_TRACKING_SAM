@@ -112,6 +112,20 @@ def iradon_reconstruction(row_sinogram, DEGREES):
 
     iradon_reconstruction = iradon(row_sinogram, theta=theta, filter_name='ramp')
 
+    # Extract the middle row index
+    middle_row_index = iradon_reconstruction.shape[0] // 2
+
+    # Extract the middle row of the matrix
+    middle_row = iradon_reconstruction[middle_row_index, :]
+
+    # Plot the intensity values of the middle row
+    plt.plot(middle_row)
+    plt.xlabel('Pixel Index')
+    plt.ylabel('Intensity')
+    plt.title('Intensity Plot of Middle Row')
+    plt.grid(True)
+    plt.show()
+
     return iradon_reconstruction
 
 def deduce_missing_CoM(y_sinusoidal_fit_params, average_x_CoM, CoM, projection_idx, NUMBER_OF_PROJECTIONS):
