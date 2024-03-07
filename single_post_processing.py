@@ -33,7 +33,7 @@ def plot_results(row_sinogram, CoM_sinogram, iradon_reconstruction):
     plt.tight_layout()
     plt.show()
 
-def correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False):
+def correct_data(y_sinusoidal_fit_params, CoM, projections, invert=False, plot=False):
 
     A, B, C, D = y_sinusoidal_fit_params
 
@@ -57,7 +57,7 @@ def correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False):
         # Creating a new array filled with ones, representing the background
         corrected_projection = np.full_like(projection, 0, dtype=np.float64)
 
-        if not reverse:
+        if not invert:
             if y_shift >= 1:
                 corrected_projection[y_shift:, :] = projection[:-y_shift or None, :]
             elif y_shift <= 1:
@@ -71,34 +71,36 @@ def correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False):
         corrected_projections.append(corrected_projection)
 
     num_projections = len(CoM)
-    
-    filtered_y_shifts = [y for y in y_shifts[:num_projections] if y > 0.5 or y < -0.5]
-    shift_indexes = [i for i, y in enumerate(y_shifts[:num_projections]) if y > 0.5 or y < -0.5]
 
-    fig, ax = plt.subplots()
+    if plot:
 
-    # Create a scatter plot
-    # ax.scatter(shift_indexes, filtered_y_shifts, marker='x', label='Sphere Centre of Mass')
-    ax.axhline(y=0, color='black', linestyle='-', label='Correction Error')
+        filtered_y_shifts = [y for y in y_shifts[:num_projections] if y > 0.5 or y < -0.5]
+        shift_indexes = [i for i, y in enumerate(y_shifts[:num_projections]) if y > 0.5 or y < -0.5]
 
-    # Add arrows for each non-zero point
-    for i, y in zip(shift_indexes, filtered_y_shifts):
-        if y > 0:
-            ax.arrow(i, y, 0, -y + 0.5, head_width=1, head_length=0.5, fc='blue', ec='blue', overhang=0.7)
-        else:
-            ax.arrow(i, y, 0, -y - 0.5, head_width=1, head_length=0.5, fc='red', ec='red', overhang=0.7)
+        fig, ax = plt.subplots()
 
-    # Add label for arrows
-    ax.arrow(0, 0, 0, 0, head_width=0, head_length=0, fc='blue', ec='blue', overhang=0.7, label='Down-Shifting Projections')
-    ax.arrow(0, 0, 0, 0, head_width=0, head_length=0, fc='red', ec='red', overhang=0.7, label='Up-Shifting Projections')
+        # Create a scatter plot
+        ax.scatter(shift_indexes, filtered_y_shifts, marker='x', label='Sphere Centre of Mass')
+        ax.axhline(y=0, color='black', linestyle='-', label='Correction Error')
 
-    ax.set_title(f'Shifting Corrections for the First {num_projections} Projections')
-    ax.legend()
-    ax.set_axisbelow(True)
-    ax.yaxis.grid(color='gray', linestyle='-')
-    ax.xaxis.grid(color='gray', linestyle='-')
+        # Add arrows for each non-zero point
+        for i, y in zip(shift_indexes, filtered_y_shifts):
+            if y > 0:
+                ax.arrow(i, y, 0, -y + 0.5, head_width=1, head_length=0.5, fc='blue', ec='blue', overhang=0.7)
+            else:
+                ax.arrow(i, y, 0, -y - 0.5, head_width=1, head_length=0.5, fc='red', ec='red', overhang=0.7)
 
-    plt.show()
+        # Add label for arrows
+        ax.arrow(0, 0, 0, 0, head_width=0, head_length=0, fc='blue', ec='blue', overhang=0.7, label='Down-Shifting Projections')
+        ax.arrow(0, 0, 0, 0, head_width=0, head_length=0, fc='red', ec='red', overhang=0.7, label='Up-Shifting Projections')
+
+        ax.set_title(f'Shifting Corrections for the First {num_projections} Projections')
+        ax.legend()
+        ax.set_axisbelow(True)
+        ax.yaxis.grid(color='gray', linestyle='-')
+        ax.xaxis.grid(color='gray', linestyle='-')
+
+        plt.show()
 
     return corrected_projections
 
@@ -140,18 +142,18 @@ def plot_sinogram(sinogram):
     plt.tight_layout()
     plt.show()
 
-def sinogram(CoM, projections, projection_idx, complete=False):
+def sinogram(CoM, projections, projection_idx, type='not complete'):
 
     sinogram = []
 
-    if complete == True:
+    if type == 'complete':
         for i, projection in enumerate(projections):
 
             y_CoM = int(CoM[i][0])
             slice = projection[:,y_CoM]
             sinogram.append(slice)
 
-    elif not complete:
+    elif type == 'not complete':
         for i, idx in enumerate(projection_idx):
     
             projection = projections[idx]
@@ -159,10 +161,10 @@ def sinogram(CoM, projections, projection_idx, complete=False):
             slice = projection[:,y_CoM]
             sinogram.append(slice)
 
-    elif complete == 'Fixed Row Sinogram':
+    else:
         for projection in projections:
 
-            slice = projection[:,20]
+            slice = projection[:,type]
             sinogram.append(slice)
 
     sinogram = np.transpose(sinogram)
@@ -415,6 +417,8 @@ def main():
     projections_file_path = 'TiffStack.tif'
     data_folder = 'Data Folder'
 
+    fixed_row_projection = 20
+
     CoM, radii, projection_idx = import_text_outputs(data_folder, invert=False)
 
     # Get the deduced z-coordinate for each projection
@@ -443,7 +447,7 @@ def main():
     y_sinusoidal_fit_params = y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True)
 
     # Obtain the sinogram of the sphere tracking
-    CoM_raw_sinogram = sinogram(CoM, projections, projection_idx)
+    CoM_raw_sinogram = sinogram(CoM, projections, projection_idx, type='not complete')
 
     # Plot the raw sphere tracking sinograms
     plot_sinogram(CoM_raw_sinogram)
@@ -452,29 +456,29 @@ def main():
     CoM = deduce_missing_CoM(y_sinusoidal_fit_params, average_x_CoM, CoM, projection_idx, NUMBER_OF_PROJECTIONS)
 
     # Obtain the complete sinograms of the sphere tracking
-    CoM_complete_sinogram = sinogram(CoM, projections, projection_idx, complete=True)
+    CoM_complete_sinogram = sinogram(CoM, projections, projection_idx, type='complete')
 
     # Plot the complete sphere tracking sinograms
     plot_sinogram(CoM_complete_sinogram)
 
     # Obtain the sinogram for a fixed row in the projections
-    raw_row_sinogram = sinogram(CoM, projections, projection_idx, complete='Fixed Row Sinogram')
+    raw_row_sinogram = sinogram(CoM, projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
     raw_reconstruction = iradon_reconstruction(raw_row_sinogram, DEGREES)
     # Plot the complete sphere tracking sinogram, and the the raw fixed-row sinogram with its reconstruction
     plot_results(raw_row_sinogram, CoM_complete_sinogram, raw_reconstruction)
 
     # Correct the projections using the y polynomial fit
-    corrected_projections = correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False)
+    corrected_projections = correct_data(y_sinusoidal_fit_params, CoM, projections, invert=False, plot=True)
 
     # Obtain the sinogram of the corrected sphere tracking
-    CoM_corrected_sinogram = sinogram(CoM, corrected_projections, projection_idx, complete=True)
+    CoM_corrected_sinogram = sinogram(CoM, corrected_projections, projection_idx, type='complete')
     
     # Plot the corrected sphere tracking sinograms
     plot_sinogram(CoM_corrected_sinogram)
 
     # Obtain the sinogram for a fixed row in the projections
-    corrected_row_sinogram = sinogram(CoM, corrected_projections, projection_idx, complete='Fixed Row Sinogram')
+    corrected_row_sinogram = sinogram(CoM, corrected_projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
     corrected_reconstruction = iradon_reconstruction(corrected_row_sinogram, DEGREES)
     # Plot the corrected sphere tracking sinogram, and the the corrected fixed-row sinogram with its reconstruction
