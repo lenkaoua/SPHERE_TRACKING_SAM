@@ -5,6 +5,7 @@ import scipy.optimize
 import tifffile
 import ast
 from skimage.transform import iradon
+from scipy.optimize import curve_fit
 
 def plot_results(row_sinogram, CoM_sinogram, iradon_reconstruction):
 
@@ -32,7 +33,9 @@ def plot_results(row_sinogram, CoM_sinogram, iradon_reconstruction):
     plt.tight_layout()
     plt.show()
 
-def correct_data(y_poly, CoM, projections, reverse=False):
+def correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False):
+
+    A, B, C, D = y_sinusoidal_fit_params
 
     corrected_projections = []
 
@@ -41,7 +44,7 @@ def correct_data(y_poly, CoM, projections, reverse=False):
     for i, projection in enumerate(projections):
 
         y_CoM = CoM[i][1]
-        expected_y_CoM = y_poly(count)
+        expected_y_CoM = sinusoidal_func(i, A, B, C, D)
         count += 1
 
         # Calculate vertical shift
@@ -75,13 +78,15 @@ def iradon_reconstruction(row_sinogram, DEGREES):
 
     return iradon_reconstruction
 
-def deduce_missing_CoM(x_poly, y_poly, CoM, projection_idx, NUMBER_OF_PROJECTIONS):
+def deduce_missing_CoM(x_poly, y_sinusoidal_fit_params, CoM, projection_idx, NUMBER_OF_PROJECTIONS):
+
+    A, B, C, D = y_sinusoidal_fit_params
 
     for i in range(NUMBER_OF_PROJECTIONS):
 
         if i not in projection_idx:
             x_CoM = x_poly(i)
-            y_CoM = y_poly(i)
+            y_CoM = sinusoidal_func(i, A, B, C, D)
             z_CoM = np.nan
 
             CoM.insert(i, [x_CoM, y_CoM, z_CoM])
@@ -162,29 +167,37 @@ def x_sinograms(CoM, projections, projection_idx, complete=False):
 
     return x_sinogram
 
-def y_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
+# Define the fitting function
+def sinusoidal_func(x, A, B, C, D):
+    return A * np.sin(B * x + C) + D
 
-    y_CoM = [y[1] for y in CoM]
+def y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True):
 
-    # Fit a 3rd order polynomial for CV_y_CoM
-    coeff = np.polyfit(projection_idx, y_CoM, 12)
-    y_poly = np.poly1d(coeff)
+    projection_idx = np.array(projection_idx)
+    y_CoM = np.array([y[1] for y in CoM])
 
-    # Generate points for the fitted polynomials
-    points = np.linspace(0, NUMBER_OF_PROJECTIONS, 100)
-    y_fit = y_poly(points)
+    # Initial guesses for parameters
+    initial_guesses = [250, 2*np.pi/600, np.pi, 0]
+
+    # Perform the curve fitting
+    y_sinusoidal_fit_params, covariance = curve_fit(sinusoidal_func, projection_idx, y_CoM, p0=initial_guesses)
+
+    # Extract the fitted parameters
+    A, B, C, D = y_sinusoidal_fit_params
+
+    y_fit = sinusoidal_func(projection_idx, A, B, C, D)
 
     if plot:
-
+         
         # Create figure and axes objects with two subplots
         fig, ax = plt.subplots(1, 1)  # 1 row, 2 columns
 
         # Plot for the first subplot (CV)
         ax.scatter(projection_idx, y_CoM, marker='o', color='orange', label='Sphere Centre of Mass', s=3)
-        ax.plot(points, y_fit, 'k-', label='Fitted Curve', linewidth=1)
+        ax.plot(projection_idx, y_fit, 'k-', label='Sinusoidal Fitted Curve', linewidth=1)
         ax.set_xlabel('Projection Number')
         ax.set_ylabel('Centre of Mass Y-Coordinate')
-        ax.set_title("Y-Coordinates of the Sphere's Centre of Mass and Curve Fitting vs Projection Number")
+        ax.set_title("Y-Coordinates of the Sphere's Centre of Mass and Sinusoidal Curve Fitting vs Projection Number")
         ax.legend()
         ax.invert_yaxis()
         ax.grid(True)
@@ -192,7 +205,7 @@ def y_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
         plt.tight_layout()
         plt.show()
 
-    return y_poly
+    return y_sinusoidal_fit_params
 
 def x_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True):
     
@@ -431,7 +444,7 @@ def main():
 
     # Obtain the x and y polynomial fit functions
     x_poly = x_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
-    y_poly = y_curve_fitting(CoM, projection_idx, NUMBER_OF_PROJECTIONS, plot=True)
+    y_sinusoidal_fit_params = y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True)
 
     # Obtain the x and y sinograms of the sphere tracking
     x_CoM_raw_sinogram = x_sinograms(CoM, projections, projection_idx)
@@ -441,7 +454,7 @@ def main():
     plot_sinograms(y_CoM_raw_sinogram, x_CoM_raw_sinogram)
 
     # Deduce the missing centre of mass coordinates using the x and y polynomial fits
-    CoM = deduce_missing_CoM(x_poly, y_poly, CoM, projection_idx, NUMBER_OF_PROJECTIONS)
+    CoM = deduce_missing_CoM(x_poly, y_sinusoidal_fit_params, CoM, projection_idx, NUMBER_OF_PROJECTIONS)
 
     # Obtain the complete x and y sinograms of the sphere tracking
     x_CoM_complete_sinogram = x_sinograms(CoM, projections, projection_idx, complete=True)
@@ -458,7 +471,7 @@ def main():
     plot_results(y_raw_row_sinogram, y_CoM_complete_sinogram, raw_reconstruction)
 
     # Correct the projections using the y polynomial fit
-    corrected_projections = correct_data(y_poly, CoM, projections, reverse=False)
+    corrected_projections = correct_data(y_sinusoidal_fit_params, CoM, projections, reverse=False)
 
     # Obtain the x and y sinograms of the corrected sphere tracking
     x_CoM_corrected_sinogram = x_sinograms(CoM, corrected_projections, projection_idx, complete=True)

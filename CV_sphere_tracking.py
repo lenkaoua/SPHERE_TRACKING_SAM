@@ -60,17 +60,23 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
             circle_found = True
 
             if plot:
-                fig, (ax1, ax2) = plt.subplots(1, 2)
+                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 4))
+
+                circle = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
+                circle2 = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
 
                 ax1.imshow(projections[projection_num], cmap='gray')
-                ax1.set_title(f'Raw Projection')
+                ax1.set_title(f'Raw', fontsize=10)
 
                 ax2.imshow(img, cmap='gray')
-                circle = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
                 ax2.add_artist(circle)
-                ax2.set_title(f'Sphere Segmentation Mask')
+                ax2.set_title(f'Mask', fontsize=10)
 
-                plt.suptitle(f'Projection {projection_num}', fontsize=16)
+                ax3.imshow(projections[projection_num], cmap='gray')
+                ax3.add_artist(circle2)
+                ax3.set_title(f'Tracking', fontsize=10)
+
+                plt.suptitle(f'Projection {projection_num}', fontsize=10)
                 plt.show()
 
             if disp:
@@ -78,7 +84,7 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
                 print(f'CoM: {(x_CoM, y_CoM)}')
                 print(f'Radii: {radius}')
                 print('-'*50)
-    
+
     return CoM, radii, projection_idx
 
 
