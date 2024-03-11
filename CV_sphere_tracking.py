@@ -60,7 +60,7 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
             circle_found = True
 
             if plot:
-                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 4))
+                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 6))
 
                 circle = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
                 circle2 = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
@@ -76,8 +76,9 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
                 ax3.add_artist(circle2)
                 ax3.set_title(f'Tracking', fontsize=10)
 
-                plt.suptitle(f'Projection {projection_num}', fontsize=10)
-                plt.show()
+                plt.suptitle(f'Sphere Tracking Projection {projection_num}', fontsize=10)
+                plt.pause(0.01)
+                plt.close('all')
 
             if disp:
                 print(f'Circle detected at projection {projection_num}')

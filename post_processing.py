@@ -39,7 +39,6 @@ def plot_smoothness(reconstruction_fbp):
     # Show the plot
     plt.show()
 
-
 def correct_data(poly, CV_CoM, images, reverse=False):
     corrected_images = []
 

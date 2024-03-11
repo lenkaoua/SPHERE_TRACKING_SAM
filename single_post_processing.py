@@ -6,16 +6,35 @@ import tifffile
 import ast
 from skimage.transform import iradon
 from scipy.optimize import curve_fit
+from tifffile import imsave
+
+def save_images(images):
+
+    for i, image in enumerate(images):
+        
+        # Normalize the data to the range [0, 1]
+        image -= image.min()
+        image /= image.max()
+
+        # Scale the data to the range [0, 255] for 8-bit representation
+        image *= 255
+
+        # Convert the data to uint8
+        image = image.astype(np.uint8)
+        
+        # Save the data to a TIFF file
+        tifffile.imwrite(f'{i}.tiff', image)
 
 def plot_crispness_comparison(before_averaged_columns, after_averaged_columns):
 
     # Plot the averaged values
-    plt.plot(before_averaged_columns)
-    plt.plot(after_averaged_columns)
+    plt.plot(range(250,425), before_averaged_columns[250:425], label='Before Correction')
+    plt.plot(range(250,425), after_averaged_columns[250:425], label='After correction')
     plt.xlabel('Pixel Index')
     plt.ylabel('Intensity')
-    plt.title('Averaged Intensity Plot of Middle 10 Rows')
+    plt.title('Averaged Intensity Plot of Middle 10 Rows bewteen Columns 250 and 425')
     plt.grid(True)
+    plt.legend()
     plt.show()
 
 def plot_results(row_sinogram, CoM_sinogram, iradon_reconstruction):
@@ -318,11 +337,11 @@ def plot_trajectory(CoM, rotation_axis, rotation_point):
     ax.scatter(x_CoM, y_CoM, z_CoM, c='purple', marker='o', label='Sphere Centre of Mass')
 
     # Plot the deduced point of rotation
-    ax.scatter(rotation_point[0], rotation_point[1], rotation_point[2], c='black', marker='x', label='Point of Rotation')
+    ax.scatter(rotation_point[0], rotation_point[1], rotation_point[2], c='black', marker='x')
 
     # Plot the deduced rotation axis
-    ax.quiver(rotation_point[0], rotation_point[1], rotation_point[2], rotation_axis[0], rotation_axis[2], rotation_axis[1], length=50, color='black', label='Axis of Rotation')
-
+    ax.quiver(rotation_point[0], rotation_point[1], rotation_point[2], rotation_axis[0], rotation_axis[2], rotation_axis[1], length=20, color='black', label='Axis of Rotation')
+    
     # Set labels
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -485,6 +504,8 @@ def main():
     raw_row_sinogram = sinogram(CoM, projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
     raw_reconstruction, before_averaged_columns = iradon_reconstruction(raw_row_sinogram, DEGREES)
+
+
     # Plot the complete sphere tracking sinogram, and the the raw fixed-row sinogram with its reconstruction
     plot_results(raw_row_sinogram, CoM_complete_sinogram, raw_reconstruction)
 
@@ -501,10 +522,13 @@ def main():
     corrected_row_sinogram = sinogram(CoM, corrected_projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
     corrected_reconstruction, after_averaged_columns = iradon_reconstruction(corrected_row_sinogram, DEGREES)
+    
     # Plot the corrected sphere tracking sinogram, and the the corrected fixed-row sinogram with its reconstruction
     plot_results(corrected_row_sinogram, CoM_corrected_sinogram, corrected_reconstruction)
 
     plot_crispness_comparison(before_averaged_columns, after_averaged_columns)
+
+    save_images([raw_reconstruction, corrected_reconstruction])
 
 if __name__ == '__main__':
     main()
