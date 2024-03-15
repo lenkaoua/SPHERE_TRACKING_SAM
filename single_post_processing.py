@@ -181,25 +181,39 @@ def plot_sinogram(sinogram):
     plt.tight_layout()
     plt.show()
 
-def sinogram(CoM, projections, projection_idx, type='not complete'):
+def sinogram(CoM, projections, projection_idx, type='incomplete'):
 
     sinogram = []
 
     if type == 'complete':
         for i, projection in enumerate(projections):
-
+            
             y_CoM = int(CoM[i][0])
             slice = projection[:,y_CoM]
             sinogram.append(slice)
+    
+    elif type == 'incomplete':
+
+        not_complete_count = 0
+
+        for i, projection in enumerate(projections):
+            if i in projection_idx:
+                    y_CoM = int(CoM[projection_idx.index(i)][0])
+                    slice = projection[:,y_CoM]
+                    sinogram.append(slice)
+            else:
+                not_complete_count += 1 
+                slice = np.full(700, np.nan)
+                sinogram.append(slice)
 
     elif type == 'not complete':
         for i, idx in enumerate(projection_idx):
-    
+            
             projection = projections[idx]
             y_CoM = int(CoM[i][0])
             slice = projection[:,y_CoM]
             sinogram.append(slice)
-
+    
     else:
         for projection in projections:
 
@@ -235,20 +249,16 @@ def y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True):
         # Create figure and axes objects with two subplots
         fig, ax = plt.subplots(1, 1)  # 1 row, 2 columns
 
-        ax.scatter(projection_idx, y_CoM, marker='o', color='orange', label='Sphere Centre of Mass', s=3)
-        ax.plot(projection_idx, y_fit, 'k-', label='Sinusoidal Fitted Curve', linewidth=1)
+        ax.scatter(projection_idx, y_CoM, marker='o', color='red', label='Sphere Centre of Mass', s=3)
+        ax.plot(projection_idx, y_fit, 'black', label='Sinusoidal Fitted Curve', linewidth=1)
         ax.set_xlabel('Projection Number')
         ax.set_ylabel('Centre of Mass Y-Coordinate')
         ax.set_title("Y-Coordinates of the Sphere's Centre of Mass and Sinusoidal Curve Fitting vs Projection Number")
         ax.legend()
         ax.invert_yaxis()
-        ax.set_axisbelow(True)
-        ax.yaxis.grid(color='gray', linestyle='-')
-        ax.xaxis.grid(color='gray', linestyle='-')
+        ax.set_axisbelow(False)
 
-        plt.tight_layout()
         plt.show()
-
     return y_sinusoidal_fit_params
 
 def x_curve_fitting(CoM, projection_idx, plot=True):
@@ -486,7 +496,7 @@ def main():
     y_sinusoidal_fit_params = y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True)
 
     # Obtain the sinogram of the sphere tracking
-    CoM_raw_sinogram = sinogram(CoM, projections, projection_idx, type='not complete')
+    CoM_raw_sinogram = sinogram(CoM, projections, projection_idx, type='incomplete')
 
     # Plot the raw sphere tracking sinograms
     plot_sinogram(CoM_raw_sinogram)
@@ -505,7 +515,6 @@ def main():
     # Reconstruct the fixed-row sinogram
     raw_reconstruction, before_averaged_columns = iradon_reconstruction(raw_row_sinogram, DEGREES)
 
-
     # Plot the complete sphere tracking sinogram, and the the raw fixed-row sinogram with its reconstruction
     plot_results(raw_row_sinogram, CoM_complete_sinogram, raw_reconstruction)
 
@@ -522,11 +531,11 @@ def main():
     corrected_row_sinogram = sinogram(CoM, corrected_projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
     corrected_reconstruction, after_averaged_columns = iradon_reconstruction(corrected_row_sinogram, DEGREES)
-    
+
     # Plot the corrected sphere tracking sinogram, and the the corrected fixed-row sinogram with its reconstruction
     plot_results(corrected_row_sinogram, CoM_corrected_sinogram, corrected_reconstruction)
 
-    plot_crispness_comparison(before_averaged_columns, after_averaged_columns)
+    # plot_crispness_comparison(before_averaged_columns, after_averaged_columns)
 
     save_images([raw_reconstruction, corrected_reconstruction])
 

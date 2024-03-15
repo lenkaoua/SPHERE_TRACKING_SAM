@@ -60,23 +60,26 @@ def circle_detection(segmentation_files, projections, segmentation_files_path, c
             circle_found = True
 
             if plot:
-                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 6))
+                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 8))
 
                 circle = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
                 circle2 = plt.Circle((x_CoM, y_CoM), radius, color='red', fill=False, linewidth=1)
 
                 ax1.imshow(projections[projection_num], cmap='gray')
                 ax1.set_title(f'Raw', fontsize=10)
-
+                ax1.axis('off')
+                
                 ax2.imshow(img, cmap='gray')
                 ax2.add_artist(circle)
                 ax2.set_title(f'Mask', fontsize=10)
+                ax2.axis('off')
 
                 ax3.imshow(projections[projection_num], cmap='gray')
                 ax3.add_artist(circle2)
                 ax3.set_title(f'Tracking', fontsize=10)
+                ax3.axis('off')
 
-                plt.suptitle(f'Sphere Tracking Projection {projection_num}', fontsize=10)
+                plt.suptitle(f'Projection {projection_num}', fontsize=12)
                 plt.pause(0.01)
                 plt.close('all')
 
@@ -134,7 +137,7 @@ def main():
     
     CoM, radii, projection_idx = circle_detection(segmentation_files, projections, segmentation_files_path, circle_detection_accuracy, plot=True, disp=False)
 
-    save_outputs(CoM, radii, projection_idx, output_folder)
+    # save_outputs(CoM, radii, projection_idx, output_folder)
 
 if __name__ == '__main__':
     main()
