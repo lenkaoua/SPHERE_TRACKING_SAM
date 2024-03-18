@@ -428,7 +428,7 @@ def deduce_z_axis_CoM(xy_CoM, radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PI
     for i in range(len(xy_CoM)):
         
         magnification = SPHERE_RADIUS / radii[i]
-        z_CoM = (SOURCE_DETECTOR_DISTANCE / magnification) - SOURCE_DETECTOR_DISTANCE
+        z_CoM = - (SOURCE_DETECTOR_DISTANCE * magnification) + SOURCE_DETECTOR_DISTANCE
 
         CoM.append([xy_CoM[i][0], xy_CoM[i][1], z_CoM])
 
