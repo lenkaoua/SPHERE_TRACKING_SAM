@@ -467,7 +467,7 @@ def main():
     DEGREES = 360
 
     projections_file_path = 'TiffStack.tif'
-    data_folder = 'Data Folder'
+    data_folder = 'Output'
 
     fixed_row_projection = 20
 
