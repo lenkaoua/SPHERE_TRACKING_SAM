@@ -110,7 +110,7 @@ def correct_data(y_sinusoidal_fit_params, CoM, projections, invert=False, plot=F
         fig, ax = plt.subplots()
 
         # Create a scatter plot
-        ax.scatter(shift_indexes, filtered_y_shifts, marker='x', label='Sphere Centre of Mass')
+        # ax.scatter(shift_indexes, filtered_y_shifts, marker='x', label='Sphere Centre of Mass')
         ax.axhline(y=0, color='black', linestyle='-', label='Correction Error')
 
         # Add arrows for each non-zero point
@@ -121,14 +121,17 @@ def correct_data(y_sinusoidal_fit_params, CoM, projections, invert=False, plot=F
                 ax.arrow(i, y, 0, -y - 0.5, head_width=1, head_length=0.5, fc='red', ec='red', overhang=0.7)
 
         # Add label for arrows
-        ax.arrow(0, 0, 0, 0, head_width=0, head_length=0, fc='blue', ec='blue', overhang=0.7, label='Down-Shifting Projections')
-        ax.arrow(0, 0, 0, 0, head_width=0, head_length=0, fc='red', ec='red', overhang=0.7, label='Up-Shifting Projections')
+        ax.arrow(0, 0, 0, 0, head_width=1, head_length=0.5, fc='blue', ec='blue', overhang=0.7, label='Down-Shifting Projections')
+        ax.arrow(0, 0, 0, 0, head_width=1, head_length=0-5, fc='red', ec='red', overhang=0.7, label='Up-Shifting Projections')
 
-        ax.set_title(f'Shifting Corrections for the First {num_projections} Projections')
-        ax.legend()
+        ax.set_title(f'Projection-Shifting Corrections')
+        ax.set_xlabel(f'Projection Number')
+        ax.set_ylabel(f'Sphere Centre of Mass Coordinate Error')
+        ax.legend(loc='lower right')
         ax.set_axisbelow(True)
         ax.yaxis.grid(color='gray', linestyle='-')
         ax.xaxis.grid(color='gray', linestyle='-')
+        ax.set_ylim([-6.5, 6.5])
 
         plt.show()
 
@@ -248,15 +251,15 @@ def y_sinusoidal_curve_fitting(CoM, projection_idx, plot=True):
          
         # Create figure and axes objects with two subplots
         fig, ax = plt.subplots(1, 1)  # 1 row, 2 columns
-
-        ax.scatter(projection_idx, y_CoM, marker='o', color='red', label='Sphere Centre of Mass', s=3)
-        ax.plot(projection_idx, y_fit, 'black', label='Sinusoidal Fitted Curve', linewidth=1)
+        ax.scatter(projection_idx, y_CoM, marker='o', color='red', label='Sphere Centre of Mass', s=7)
+        ax.plot(projection_idx, y_fit, 'yellow', label='Sinusoidal Fitted Curve', linewidth=1.4)
         ax.set_xlabel('Projection Number')
-        ax.set_ylabel('Centre of Mass Y-Coordinate')
+        ax.set_ylabel('Sphere Centre of Mass Coordinate')
         ax.set_title("Y-Coordinates of the Sphere's Centre of Mass and Sinusoidal Curve Fitting vs Projection Number")
-        ax.legend()
+        ax.legend(frameon=True, facecolor='lightgrey', edgecolor='black')
         ax.invert_yaxis()
         ax.set_axisbelow(False)
+        plt.grid()
 
         plt.show()
     return y_sinusoidal_fit_params
@@ -344,13 +347,13 @@ def plot_trajectory(CoM, rotation_axis, rotation_point):
     ax = fig.add_subplot(111, projection='3d')
 
     # Plot the deduced positions of the sphere in red
-    ax.scatter(x_CoM, y_CoM, z_CoM, c='purple', marker='o', label='Sphere Centre of Mass')
+    ax.scatter(x_CoM, y_CoM, z_CoM, c='red', marker='o', label='Sphere Centre of Mass')
 
     # Plot the deduced point of rotation
-    ax.scatter(rotation_point[0], rotation_point[1], rotation_point[2], c='black', marker='x')
+    ax.scatter(rotation_point[0], rotation_point[1], rotation_point[2], c='red', marker='x')
 
     # Plot the deduced rotation axis
-    ax.quiver(rotation_point[0], rotation_point[1], rotation_point[2], rotation_axis[0], rotation_axis[2], rotation_axis[1], length=20, color='black', label='Axis of Rotation')
+    ax.quiver(rotation_point[0], rotation_point[1], rotation_point[2], rotation_axis[0], rotation_axis[2], rotation_axis[1], length=1, color='red', label='Axis of Rotation')
     
     # Set labels
     ax.set_xlabel('X')
@@ -418,7 +421,7 @@ def get_rotation_axis(CoM):
     return rotation_axis
 
 def deduce_z_axis_CoM(xy_CoM, radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PIXEL_SIZE):
-
+    
     CoM = []
 
     # Convert the source to detector distance and sphere radius to pixel dimensions
@@ -428,9 +431,9 @@ def deduce_z_axis_CoM(xy_CoM, radii, SPHERE_RADIUS, SOURCE_DETECTOR_DISTANCE, PI
     for i in range(len(xy_CoM)):
         
         magnification = SPHERE_RADIUS / radii[i]
-        z_CoM = - (SOURCE_DETECTOR_DISTANCE * magnification) + SOURCE_DETECTOR_DISTANCE
-
-        CoM.append([xy_CoM[i][0], xy_CoM[i][1], z_CoM])
+        # z_CoM = SOURCE_DETECTOR_DISTANCE - SOURCE_DETECTOR_DISTANCE * magnification
+        z_CoM = SOURCE_DETECTOR_DISTANCE*((radii[i]-SPHERE_RADIUS)/radii[i])
+        CoM.append([32, xy_CoM[i][1], z_CoM])
 
     return CoM
 
@@ -537,7 +540,7 @@ def main():
 
     # plot_crispness_comparison(before_averaged_columns, after_averaged_columns)
 
-    save_images([raw_reconstruction, corrected_reconstruction])
+    # save_images([raw_reconstruction, corrected_reconstruction])
 
 if __name__ == '__main__':
     main()
