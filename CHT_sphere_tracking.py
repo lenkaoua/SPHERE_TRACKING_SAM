@@ -121,9 +121,9 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 def main():
     
     # Specify the segmentation files path
-    segmentation_files_path = 'Images 3/Segmentations'
+    segmentation_files_path = 'Output/Segmentations'
     # Specify the output folder
-    output_folder = 'Data Folder'
+    output_folder = 'Output'
     # Specify the projections file path
     projections_file_path = 'TiffStack.tif'
     # Specify the number of projections
@@ -135,9 +135,9 @@ def main():
 
     segmentation_files = get_segmentation_files(segmentation_files_path)
     
-    CoM, radii, projection_idx = circle_detection(segmentation_files, projections, segmentation_files_path, circle_detection_accuracy, plot=True, disp=False)
+    CoM, radii, projection_idx = circle_detection(segmentation_files, projections, segmentation_files_path, circle_detection_accuracy, plot=False, disp=False)
 
-    save_outputs(CoM, radii, projection_idx, output_folder)
+    # save_outputs(CoM, radii, projection_idx, output_folder)
 
 if __name__ == '__main__':
     main()

@@ -18,16 +18,16 @@ def save_outputs(CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx, out
     
     with open(f'{output_folder}/xy_CoM.txt', 'w') as file:
         file.write(str_CV_xy_CoM)
-    with open(f'{output_folder}/SAM_xy_CoM.txt', 'w') as file:
-        file.write(str_SAM_xy_CoM)
+    # with open(f'{output_folder}/SAM_xy_CoM.txt', 'w') as file:
+    #     file.write(str_SAM_xy_CoM)
     with open(f'{output_folder}/radii.txt', 'w') as file:
         file.write(str_CV_radii)
-    with open(f'{output_folder}/SAM_radii.txt', 'w') as file:
-        file.write(str_SAM_radii)
+    # with open(f'{output_folder}/SAM_radii.txt', 'w') as file:
+    #     file.write(str_SAM_radii)
     with open(f'{output_folder}/projection_idx.txt', 'w') as file:
         file.write(str_projection_idx)
 
-def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.88):
+def circle_detection(segmentations, output_folder, circle_detection_tolerance=0.88):
 
     CV_deduced_CoM = []
     CV_deduced_radius = []
@@ -55,7 +55,7 @@ def circle_detection(segmentations, output_folder, circle_detection_accuracy=0.8
             medianBlur_image = cv2.medianBlur(np.array(image),5)
 
             circles = cv2.HoughCircles(medianBlur_image,cv2.HOUGH_GRADIENT_ALT,1,10,
-                                param1=1,param2=circle_detection_accuracy,minRadius=0,maxRadius=0)
+                                param1=1,param2=circle_detection_tolerance,minRadius=0,maxRadius=0)
             
             if circles is not None:
                 
@@ -175,7 +175,7 @@ def main():
     # SPHERE_RADIUS = 25e-6 # 40 μm
     # SOURCE_DETECTOR_DISTANCE = SOURCE_SAMPLE_DISTANCE + SAMPLE_DETECTOR_DISTANCE # cm
 
-    circle_detection_accuracy = 0.84
+    circle_detection_tolerance = 0.84
 
     file_path = 'TiffStack.tif'
     output_folder = 'Output'
@@ -183,7 +183,7 @@ def main():
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
     projections = enhance_contrast(raw_projections)
     segmentations = segment_projections(projections)
-    CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, output_folder, circle_detection_accuracy=circle_detection_accuracy)
+    CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, output_folder, circle_detection_tolerance=circle_detection_tolerance)
     
     save_outputs(CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx, output_folder)
 
