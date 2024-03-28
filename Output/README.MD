@@ -1,0 +1,1 @@
+Segmentation masks and text output files will go under this Output folder
