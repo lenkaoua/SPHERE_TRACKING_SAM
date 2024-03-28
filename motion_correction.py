@@ -517,7 +517,7 @@ def main():
     raw_row_sinogram = sinogram(CoM, projections, projection_idx, type=fixed_row_projection)
     # Reconstruct the fixed-row sinogram
     raw_reconstruction, before_averaged_columns = iradon_reconstruction(raw_row_sinogram, DEGREES)
-    print(raw_reconstruction)
+
     # Plot the complete sphere tracking sinogram, and the the raw fixed-row sinogram with its reconstruction
     plot_results(raw_row_sinogram, CoM_complete_sinogram, raw_reconstruction)
 

@@ -157,7 +157,7 @@ Images/
 sam_vit_h_4b8939.pth
 ProjectionsData.tiff
 TiffStack.tif
-Output/
+# Output/
 Images 2/
 Images 3/
 Data Folder/
