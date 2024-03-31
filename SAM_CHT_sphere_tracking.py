@@ -167,7 +167,7 @@ def import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS):
 
 def main():
 
-    NUMBER_OF_PROJECTIONS = 1
+    NUMBER_OF_PROJECTIONS = 20
     # PIXEL_SIZE = 1.1e-6 # 1.1 μm
     # ENERGY = 8e3 # 8 keV
     # SOURCE_SAMPLE_DISTANCE = 220e-2 # 220 cm
@@ -177,14 +177,14 @@ def main():
 
     circle_detection_tolerance = 0.84
 
-    file_path = 'TiffStack.tif'
+    file_path = 'Files.tiff'
     output_folder = 'Output'
 
     raw_projections = import_tiff_projections(file_path, NUMBER_OF_PROJECTIONS)
     projections = enhance_contrast(raw_projections)
     segmentations = segment_projections(projections)
     CV_xy_CoM, CV_radii, SAM_xy_CoM, SAM_radii, projection_idx = circle_detection(segmentations, output_folder, circle_detection_tolerance=circle_detection_tolerance)
-    
+
     save_outputs(CV_xy_CoM, SAM_xy_CoM, CV_radii, SAM_radii, projection_idx, output_folder)
 
 if __name__ == '__main__':

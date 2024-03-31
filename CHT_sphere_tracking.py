@@ -125,7 +125,7 @@ def main():
     # Specify the output folder
     output_folder = 'Output'
     # Specify the projections file path
-    projections_file_path = 'TiffStack.tif'
+    projections_file_path = 'x_ray_maps.tiff'
     # Specify the number of projections
     NUMBER_OF_PROJECTIONS = 652
     # Set the circle detection tolerance-accuracy factor
